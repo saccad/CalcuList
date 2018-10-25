@@ -1,0 +1,29 @@
+
+{ 
+     "deptName": "unical",
+     "emps": [
+          { 
+               "firstName": "Mimmo",
+               "lastName": "Sacca",
+               "age": 30
+          },
+          { 
+               "firstName": "Anna",
+               "lastName": "Rossi",
+               "age": 32,
+               "projects": [
+                    "p1",
+                    "p2"
+               ]
+          },
+          { 
+               "firstName": "Luisa",
+               "lastName": "Cosentino",
+               "age": 28,
+               "projects": [
+                    "p1",
+                    "p3"
+               ]
+          }
+     ]
+}

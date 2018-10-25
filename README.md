@@ -1,2 +1,2 @@
 # CalcuList
-CalcuList
+CalcuList (Calculator with List manipulation) is an educational language for teaching functional programming extended with some imperative and side-effect features, which are enabled under explicit request by the programmer. In addition to strings and  lists, the language natively supports json objects and may be effectively used to implement generic MapReduce  recursive procedures to manipulate json lists. As MapReduce is a popular model in distributed computing that underpins many NoSQL systems and a json list can be thought of as a dataset of a document NoSQL datastore, CalcuList can be used for teaching advanced query algorithms for document datastores such as MongoDB and CouchDB.
