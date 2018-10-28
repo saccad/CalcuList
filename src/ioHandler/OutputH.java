@@ -34,8 +34,8 @@ public class OutputH {
 	  public static final String prompt = ">> ";
 	  public static final String promptF = ".. ";
 	  private static boolean isPrompt=true; // true if the previous line ends with semicolon
-	  static private String release = "4.2.0";
-	  static private String releaseDate = "July 5, 2018";
+	  static private String release = "4.2.1";
+	  static private String releaseDate = "October 27, 2018";
 	  
 	  static void printStart() {
 		    System.out.print (
