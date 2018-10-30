@@ -36,8 +36,8 @@ public class Assembler {
 
 	static  BufferedReader reader;
 	static private int nMaxListing;
-	static private String release = "4.2.0";
-	static private String releaseDate = "July 5, 2018";
+	static private String release = "4.2.1";
+	static private String releaseDate = "October 27, 2018";
 	static String defaultFileExt = ".clvm";
 	private static final int labelInitCapacity = 200;
 	private static final int calledLabelInitCapacity = 100;

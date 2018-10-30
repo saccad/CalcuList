@@ -1241,19 +1241,21 @@ public class Exec {
 				throw new Exc_Assembler(ErrorType.MISSING_EXEC_FILE, fileExecName+": unexpected error");
 			}
 			try {
-			DataInputStream in = new DataInputStream(fstream);
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
-			String strLine = br.readLine();
-			while ( strLine!= null ) {
-				String[] tokens = strLine.split("\\p{Space}");
-				IR=new Instruction(Instruction.getOperatorCode(tokens[0]),
-						Double.parseDouble(tokens[1]));
-				exec1(debugAct,IR,IPC);
-				strLine = br.readLine();
-			}	
-			br.close();
+				DataInputStream in = new DataInputStream(fstream);
+				BufferedReader br = new BufferedReader(new InputStreamReader(in));
+				String strLine = br.readLine();
+				while ( strLine!= null ) {
+					String[] tokens = strLine.split("\\p{Space}");
+					IR=new Instruction(Instruction.getOperatorCode(tokens[0]),
+							Double.parseDouble(tokens[1]));
+					exec1(debugAct,IR,IPC);
+					strLine = br.readLine();
+				}
+				fstream.close();
+				br.close();
 			} 
 			catch ( Exc e ) {
+				try { fstream.close(); } catch( Exception e1 ) {};
 				throw e;
 			}
 			catch ( Exception e ) {

@@ -256,7 +256,7 @@ public class LexAssembler {
 
 	static void checkLabel(String slabel, ArrayList<LabelInstr> labels, int instrInd) throws Exc {
 		int label = Integer.parseInt(slabel);
-		int k = labels.indexOf(label); 
+		int k = labels.indexOf(new LabelInstr(label,0)); 
 		if ( k >= 0 )
 			throw new Exc_Assembler(ErrorType.WRONG_INSTRUCTION, "duplicated label");
 		else
