@@ -198,7 +198,6 @@ public class OutputH {
 			System.out.println("Built-in: _rand ( )");
 			System.out.println("Built-in: _tuple ( P1 )");
 			System.out.println("Built-in: _gDate ( )");
-			System.out.println("Built-in: _gDate ( P1, P2 )");
 			System.out.println("Built-in: _pDate ( P1 )");
 			System.out.println("Built-in: _pDate ( P1, P2 )");
 			char UorF ='U';

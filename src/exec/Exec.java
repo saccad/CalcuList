@@ -1342,7 +1342,7 @@ public class Exec {
 		        	SP = WRI1+1; // 1 clop
 		        	FP = (int) WRD1; // 1 clops
 		        	if ( debugAct )  Debug.removeFrame();
-				nClops +=15; 
+		        	nClops +=15; 
 		        	break;
 
 		        case THROWE: // stop the execution by throwing an exception reported in two strings
