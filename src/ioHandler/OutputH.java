@@ -43,7 +43,7 @@ public class OutputH {
 					"                      *** CalcuList ***               \n" +
 					"     *************************************************\n"+
 					"     ********* Release "+release+" of "+releaseDate+" *******\n\n");
-		    System.out.println ("** type '!!;' for the list of service commands\n");
+		    System.out.println ("** type '!!;' to display the list of service commands\n");
 
 	  }
 	  
