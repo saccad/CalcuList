@@ -197,35 +197,35 @@ public class LexAssembler {
 			checkOperandSymb();
 			soperand = Character.toString(line.charAt(iLine)); 
 			iLine++; 
-			if ( iLine == nLine ) {
-				checkOperand(calledLabels, instrInd);
-				state=10;
-			}
-			else 
-				state = 6;
+			state = 6;
 		}
 	}
 
 	static void state6 ( ArrayList<LabelInstr> calledLabels, int instrInd  ) throws Exc {
-		if ( Character.isWhitespace(line.charAt(iLine)) || line.charAt(iLine) =='/' ) {
+		if ( iLine == nLine ) {
 			checkOperand(calledLabels, instrInd);
-			if ( Character.isWhitespace(line.charAt(iLine)) ) {
-				state = 7; iLine++;
-				if ( iLine == nLine ) 
-					state = 10; 
-			}
-			else  // case line.charAt(iLine) =='/'
-				state = 10;
+			state=10;
 		}
-		else {
-			checkOperandSymb();
-			soperand += Character.toString(line.charAt(iLine)); 
-			iLine++;
-			if ( iLine >= nLine ) {
+		else 		
+			if ( Character.isWhitespace(line.charAt(iLine)) || line.charAt(iLine) =='/' ) {
 				checkOperand(calledLabels, instrInd);
-				state = 10;
+				if ( Character.isWhitespace(line.charAt(iLine)) ) {
+					state = 7; iLine++;
+					if ( iLine == nLine ) 
+						state = 10; 
+				}
+				else  // case line.charAt(iLine) =='/'
+					state = 10;
 			}
-		}
+			else {
+				checkOperandSymb();
+				soperand += Character.toString(line.charAt(iLine)); 
+				iLine++;
+				if ( iLine >= nLine ) {
+					checkOperand(calledLabels, instrInd);
+					state = 10;
+				}
+			}
 	}
 
 	static void state7 ( ) throws Exc { // check for spurious characters at the end of the line

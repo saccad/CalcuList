@@ -73,7 +73,7 @@ public class Exec {
 	static int SP; 		// Stack Pointer (Address of the element on top in the stack)
 	static int OP;  		// Output Pointer (Address of the first free element in the output)
 	static int HP;		// Heap Pointer (Address of the first free element in the heap)
-	static int FFPP; 	// Pointer to the First Returned Function in the stored list list 
+	static int FFPP; 	// Pointer to the First Returned Function in the stored list 
 	static int FSPP; 	// Pointer to the First String in the String Pool 
 	static int LSPP; 	// Pointer to the Last String in the String Pool
 	static double WRD1; 	// an internal double register for computations 
@@ -1303,13 +1303,15 @@ public class Exec {
 			        	FP=0; // 1 clop
 			        	WRI1= (int)IR.getOperand(); // 1 clop
 			        	SP = 2*WRI1-1; // 2 clops
+			        	if (SP >= HP ) // 1 clops
+			        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"START "+ov_MEM);
 			        	if (FFPP != nullValue ) { // 1 clop
 			        		callNullify();
 			        		FFPP = nullValue; // 1 clop
 			        		nClops++;
 			        	}
 			        	if ( debugAct )  Debug.initFrame(WRI1);
-					nClops +=5;
+					nClops +=6;
 			        	break;
 		        	
 		        case HALT: // end an execution unit
@@ -2452,12 +2454,12 @@ public class Exec {
 		        			MEM[SP-2] < DoubleT || MEM[SP-2] > CharT  ) // 7 clops
 		        		throw new Exc_Exec(ErrorType.POW_NOT_SUPPORTED," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
 		        	MEM[SP-3] = Math.pow(MEM[SP-3],MEM[SP-1]); // (6+cpow) clops
-		        	if ( MEM[SP] != DoubleT && MEM[SP-2] != DoubleT && MEM[SP-1] >= 0 ) // 8 clops
+		        	if ( MEM[SP] != DoubleT && MEM[SP-2] != DoubleT && MEM[SP-1] >= 0 && MEM[SP-3] <= maxInt ) // 11 clops
 		        		MEM[SP-2] = IntT; // 2 clops
 		        	else
 		        		MEM[SP-2] = DoubleT; // 2 clops
 		        	SP -=2; // 2 clops
-					nClops +=24+cpow;
+					nClops +=27+cpow;
 		        	break;
 
 		        case ISKEY: // verify wether the json in n-1 position includes a given key 

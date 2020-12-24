@@ -255,6 +255,7 @@ public class Parser {
 	 static final int isMemorySizeService = 15;
 	 static final int isTailOptOnService = 16;
 	 static final int isTailOptOffService = 17;
+	 static final int isServiceList = 18;
 	 
 	 static int typeAbout; // associated to isAboutService - it will take one of the following values
 	 static final int isAboutBuiltIn = 0;
@@ -595,9 +596,14 @@ public class Parser {
 	 //						ID("about") (BUILTIN ID | ID | IDL) | ID("debug") [ID("off") | ID("on")] | 
 	 //						ID("history") [ [MINUS] INT] ) | ID("exec") [ [MINUS] NUM ] | ID("clops") | 
 	 //						ID("save") | ID("memory") [ ID("size") ] | 
-	 //						ID("import") [ID("echo") | ID("noecho")] |
+	 //						ID("import") [ID("echo") | ID("noecho")] | EMARK
 	 static void serviceCommand() throws Exc {
 	 	 typeDef=isService;
+		 if ( lex.currToken() == Token.EMARK  ) {
+			 lex.nextToken();
+			 typeService=isServiceList;			 
+			 return;
+		 }
 		 if ( lex.currToken() == Token.ID ) {
 			 String name = lex.IDName();
 			 if ( checkCommand(name,"variables") ) {
@@ -785,8 +791,8 @@ public class Parser {
 			 }
 			 else
 				 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.IDName()+
-								" - expected: 'variables' or 'functions' or 'debug' or 'history'"+
-								"or 'labels' or 'import' or 'exec' or 'clops' or 'release' or 'save' or 'about' or 'tail'"+ " or any prefix of them");
+								" - expected: 'variables' or 'functions' or 'debug' or 'history' or 'memory' "+
+								"or 'labels' or 'import' or 'exec' or 'clops' or 'release' or 'save' or 'about' or 'tailOpt'"+ " or any prefix of them");
 		 }
 		 else {
 			 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.tokenFullDescr()+
@@ -2556,7 +2562,7 @@ public class Parser {
 		 Transl.ins(Operator.PUSHF,-k, "*-> Lambda "+k);		 
 	 	 int indSL=Transl.ins(Operator.START,0,"* Lambda "+k);
 	 	 int nLP = 0;
-		 if ( lex.currToken() != Token.COLON ) {
+		 if ( lex.currToken() != Token.MAP ) {
 			 formalParLambda( ); nLP++;
 			 while ( lex.currToken() == Token.COMMA ) {
 				 lex.printH_Comma(false); // print space after comma in history
@@ -2564,8 +2570,8 @@ public class Parser {
 				 formalParLambda( ); nLP++;
 			 }
 		 } 	
-		 lex.printH_Colon(false); // no space after COLON on history
-		 lex.accept(Token.COLON);
+//		 lex.printH_Colon(false); // no space after COLON on history
+		 lex.accept(Token.MAP);
 		 // check equivalence with formal parameter
 		 if ( isParam ) {
 			 if ( !SymbH.equivLambdaSignature(iFunctCalled,iPar) )
@@ -2963,6 +2969,7 @@ public class Parser {
 	// execution of a command service
 	 static void serviceCommandExec () throws Exc {
 		 switch ( typeService ) {
+		 	case isServiceList: OutputH.printServiceList(); break;
 		 	case isVarService: OutputH.printVars(); break;
 		 	case isFunctService: OutputH.printFuns(ioh.nUtil()); break;
 		 	case isReleaseService: OutputH.printRelease(); break;

@@ -30,7 +30,7 @@ import error.Exc.ErrorType;
 import exec.Instruction.Operator;
 import exec.Exec;
 
-public class Lex {
+public class Lex_4_2_1 {
 
 	enum Token {
 		NOTOKEN("Null Token"), DOUBLE("DOUBLE"), INT("INT"), 
@@ -48,8 +48,7 @@ public class Lex {
 		OBRACESET("'{!'"), CBRACESET("'!}'"),OBRACEPRINT("'{^'"),CBRACEPRINT("'^}'"),  
 		PRINTADD("'%+'"), PRINTOPT ("'%' OPTION"), REMAINDER("'%'"),
 		CAST("'@'"),
-		FILEOUT("'>>'"), FILEIN("'<<'"), LAMBDA("'\'"), MAP("->"),
-		END("'null char'");
+		FILEOUT("'>>'"), FILEIN("'<<'"), LAMBDA("'lambda'"), END("'null char'");
 		String stToken;
 		Token ( String st ) {
 			stToken=st;
@@ -115,7 +114,7 @@ public class Lex {
 	private boolean truncatableString;
 
 
-  	Lex( IOH ioh) {
+  	Lex_4_2_1( IOH ioh) {
   	 	this.ioh = ioh;
     	token = Token.NOTOKEN; // no token at the beginning
     	commentOn=false;
@@ -294,10 +293,10 @@ public class Lex {
 			token=Token.EXC; 
 			return;
 		}
-//		if (svalue.equals("lambda")) {
-//			token=Token.LAMBDA; 
-//			return;
-//		}
+		if (svalue.equals("lambda")) {
+			token=Token.LAMBDA; 
+			return;
+		}
     	if ( ioh.currChar() == '.') {
     		ioh.nextChar();
     		if ( !ioh.isLetter()  ) {
@@ -381,10 +380,6 @@ public class Lex {
   void getOther() throws Exc {
   		switch ( ioh.currChar() ) {
   			case (char)0: token =Token.END; break;
-  			case '\\': 	ioh.nextChar();
-					History.addChar('\\');
-					token=Token.LAMBDA; 
-				break;
   			case '.': 	ioh.nextChar();
   						if ( ioh.isDigit() )
   							getNum(".",true); // initialPoint is true
@@ -431,16 +426,10 @@ public class Lex {
 							token=Token.OPASSIGN; assOpType=AssOpType.MINUS;
 							ioh.nextChar();
 						}
-						else
-							if ( ioh.currChar() == '>' ) {
-								token=Token.MAP;
-								ioh.nextChar();
-								History.addSubStr(" -> ");
-							}
-							else {
-								token = Token.MINUS; 
-								History.addChar('-');
-							}
+						else {
+							token = Token.MINUS; 
+							History.addChar('-');
+						}
   						break;
   			case '*':   ioh.nextChar();
 						if ( ioh.currChar() == '=' ) {

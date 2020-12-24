@@ -34,8 +34,8 @@ public class OutputH {
 	  public static final String prompt = ">> ";
 	  public static final String promptF = ".. ";
 	  private static boolean isPrompt=true; // true if the previous line ends with semicolon
-	  static private String release = "4.2.1";
-	  static private String releaseDate = "October 27, 2018";
+	  static private String release = "4.3.1";
+	  static private String releaseDate = "December 20, 2020";
 	  
 	  static void printStart() {
 		    System.out.print (
@@ -43,13 +43,14 @@ public class OutputH {
 					"                      *** CalcuList ***               \n" +
 					"     *************************************************\n"+
 					"     ********* Release "+release+" of "+releaseDate+" *******\n\n");
+		    System.out.println ("** type '!!;' for the list of service commands\n");
 
 	  }
 	  
 	  static void errorCursor( int iLine ) {
 		  	for (int i =0; i<=iLine; i++)
 		  		System.out.print("-");
-		  	System.out.print("^");
+		  	System.out.print("^"); 
 	}
 	  
 	  public  static void printRelease () {
@@ -296,7 +297,7 @@ public class OutputH {
 				System.out.print("_tuple(J) ");
 				System.out.println("/* if J is a json it returns the tuple of the json values or otherwise, ");
 				System.out.print("if J is a long, it returns the tuple of the values ");
-				System.out.println("of the date corresponding to J */");
+				System.out.println("of the date corresponding to J (Y/M/D/h/m/s/ms/dW/dY) */");
 				return;
 			}
 			if ( builtInF ==  BIFType.GDATE ) {
@@ -363,6 +364,38 @@ public class OutputH {
 				return;
 			}
 			System.out.println();
+		}
+		public static void printServiceList() throws Exc{
+			System.out.println("\n------LIST OF SERVICE COMMANDS------");
+			System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
+			System.out.println(" - !functions: lists all function names and their arguments");
+			System.out.println(" - !labels: lists all labels that have been defined in the current session");
+			System.out.println(" - !about ID: describes some info on the variable, function or label with name ID");
+			System.out.println(" - !history k: lists all statements (definitions and queries) of the session, ordered from 1 to n, corresponding to the last command\n"+
+					"               -  if k > 0, lists the statements from k to n\n" +
+					"               -  if k < 0, lists the statements from n-k to n\n" +
+					"               -  if k = 0, lists the last statement only\n" +
+					"               -  if k is missing, lists all statements");			
+			System.out.println(" - !exec k: executes the statement with index p, where \n"+
+					"               -  p = k if k > 0\n" +
+					"               -  p = n-k if k < 0\n" +
+					"               -  p = n if k = 0 or k is missing");			
+			System.out.println(" - !import echo/n0echo: imports the statements stored into a file \n"+
+					"               -  the name of the file is to be given after the prompt\n"+
+					"               -  option 'echo':  the imported statements are displayed on the screen\n"+
+					"               -  option 'noecho':  no display\n"+
+					"               -  no option:  the option 'echo' is assumed");
+			System.out.println(" - !save: all session statements are saved into a text file \n"+
+					"               -  the name of the file is to be given after the prompt");
+			System.out.println(" - !clops: displays the number of clops (micro-instructions of CalcuList Machine) for the last query or variable definition");
+			System.out.println(" - !release: displays details on the current CalcuList release");
+			System.out.println(" - !memory: displays the internal memory, i.e., the global variables in the stack and dynamic structures in the heap");
+			System.out.println(" - !tailOpt on/off: optimization of tail recursion implementation will be enabled or disabled\n"+
+					"               -  by default the optimization is enabled");
+			System.out.println(" - !debug on/off: debug will be enabled or disabled\n"+
+					"               -  by default the debug is disabled");
+			System.out.println(" * each of the above commands can be abbreviated by any non-empty prefix of it");
+			System.out.print("---End of LIST OF SERVICE COMMANDS---\n \n");					
 		}
 
 }
