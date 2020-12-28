@@ -35,10 +35,10 @@ public class Lex {
 	enum Token {
 		NOTOKEN("Null Token"), DOUBLE("DOUBLE"), INT("INT"), 
 		LONG("LONG"),ID("ID"), IDL ("labeled ID"),
-		TYPE("TYPE"), QMARK("'?'"), BUILTIN("'_'"), DOT("'.'"),
+		TYPE("TYPE"), QMARK("'?'"), UNDERSCORE("'_'"), DOT("'.'"),
 		OPAR("'('"), CPAR("')'"), PLUS("'+'"), MINUS("'-'"), STAR("'*'"), 
 		DIV("'/'"), DIVTR("'//'"), COMMA("','"), 
-		SCOLON("';'"), ASSIGN("'='"), OPASSIGN("<OP>="), DUMMY("'&'"),
+		SCOLON("';'"), ASSIGN("'='"), OPASSIGN("<OP>="), DUMMY("'#='"),
 		GTLT("GTLT"), EQNEQ("EQNEQ"),
 		OSPAR("'['"), CSPAR("']'"), HASH("'#'"),
 		BAR("'|'"), AND("'&&'"), OR("'||'"), EMARK("'!'"), COLON("':'"), 
@@ -46,7 +46,7 @@ public class Lex {
 		NULL("'null'"), CHAR("CHAR"), STRING("STRING"), EXC("exc"),
 		PRINT("'^'"), OBRACE("'{'"), CBRACE("'}'"),
 		OBRACESET("'{!'"), CBRACESET("'!}'"),OBRACEPRINT("'{^'"),CBRACEPRINT("'^}'"),  
-		PRINTADD("'%+'"), PRINTOPT ("'%' OPTION"), REMAINDER("'%'"),
+		CONTINUE("'&'"), PRINTOPT ("'%' OPTION"), REMAINDER("'%'"),
 		CAST("'@'"),
 		FILEOUT("'>>'"), FILEIN("'<<'"), LAMBDA("'\'"), MAP("->"),
 		END("'null char'");
@@ -164,7 +164,7 @@ public class Lex {
 
    
   String tokenFullDescr() {
-	  if ( token == Token.BUILTIN || token == Token.GTLT || token == Token.EQNEQ || token == Token.TYPE ) 
+	  if ( token == Token.UNDERSCORE || token == Token.GTLT || token == Token.EQNEQ || token == Token.TYPE ) 
 		  return "\'"+svalue+"\'";
 	  else 
 		  if ( token == Token.DOUBLE || token == Token.LONG || token == Token.INT || token==Token.ID )
@@ -412,9 +412,18 @@ public class Lex {
   						ioh.nextChar(); break;
   			case ')': token = Token.CPAR; History.addChar(')');
   						ioh.nextChar(); break;
-  			case '#': token = Token.HASH; History.addChar('#');
-				ioh.nextChar(); break;
-  			case '_': token = Token.BUILTIN; History.addChar('_');
+  			case '#': 	ioh.nextChar();
+						if ( ioh.currChar() == '=' ) {
+							token=Token.DUMMY;
+							History.addSubStr("#= ");
+							ioh.nextChar();
+						}
+						else {
+							token = Token.HASH; 
+							History.addChar('#');
+						}
+						break;
+  			case '_': token = Token.UNDERSCORE; History.addChar('_');
 				ioh.nextChar(); break;
   			case '+': 	ioh.nextChar();
   						if ( ioh.currChar() == '=' ) {
@@ -585,12 +594,12 @@ public class Lex {
 			  else
 				  History.addChar('|'); 
 			  break;
-  			case '&': token = Token.DUMMY; ioh.nextChar();
+  			case '&': token = Token.CONTINUE; ioh.nextChar();
 			  if ( ioh.currChar() == '&' ) {
 				  token = Token.AND; History.addSubStr(" && "); ioh.nextChar();
 			  }
 			  else 
-				  History.addSubStr("& "); 
+				  History.addSubStr(" & "); 
 			  break;
   			case '\"': token = Token.STRING; History.addChar('\"'); ioh.nextChar();
   		   		svalue = ""; int nChar = 0;
@@ -646,8 +655,9 @@ public class Lex {
  					iPrintOption=3; ioh.nextChar(); break;
 	 				case '>':  History.addSubStr(" %> "); token=Token.PRINTOPT; 
  					iPrintOption=2; ioh.nextChar(); break;
-	 				case '+': History.addSubStr(" %+ "); token=Token.PRINTADD; 
-	 					ioh.nextChar(); break;
+
+//	 				case '+': History.addSubStr(" %+ "); token=Token.CONTINUE; 
+//	 					ioh.nextChar(); break;
 	 				default: 
 	 					token=Token.REMAINDER; History.addChar('%');
  				}

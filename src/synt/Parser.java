@@ -99,7 +99,7 @@ public class Parser {
 			Token.TRUE,
 			Token.FALSE,
 			Token.NULL,
-			Token.BUILTIN,
+			Token.UNDERSCORE,
 			Token.TYPE
 		 };
 	static Token [] first_eqExpr = first_expr;
@@ -120,7 +120,7 @@ public class Parser {
 		Token.TRUE,
 		Token.FALSE,
 		Token.NULL,
-		Token.BUILTIN,
+		Token.UNDERSCORE,
 		Token.TYPE
 	 };
 	
@@ -133,7 +133,7 @@ public class Parser {
 		Token.COMMA, 
 		Token.SCOLON, 
 		Token.PRINTOPT, 
-		Token.PRINTADD, 
+		Token.CONTINUE, 
 		Token.CPAR, 
 		Token.CSPAR, 
 		Token.CBRACE, 
@@ -150,7 +150,7 @@ public class Parser {
 		Token.COMMA, 
 		Token.SCOLON, 
 		Token.PRINTOPT, 
-		Token.PRINTADD, 
+		Token.CONTINUE, 
 		Token.CPAR, 
 		Token.CSPAR, 
 		Token.CBRACE, 
@@ -183,7 +183,7 @@ public class Parser {
 		Token.TRUE,
 		Token.FALSE,
 		Token.NULL,
-		Token.BUILTIN,
+		Token.UNDERSCORE,
 		Token.TYPE
 	};
 	static Token[] first_fields = first_expr; 
@@ -208,7 +208,7 @@ public class Parser {
 			Token.TRUE,
 			Token.FALSE,
 			Token.NULL,
-			Token.BUILTIN,
+			Token.UNDERSCORE,
 			Token.TYPE, 
 			Token.DOT
 		 };
@@ -519,7 +519,7 @@ public class Parser {
 	 }
 	 
 	 // <printCommand> -> [FILEOUT OPAR (STRING | ID | IDL) CPAR] <ifExpr(SE)>
-	 //					 [PRINTOPT] { PRINTADD  <ifExpr(SE)> [PRINTOPT] }
+	 //					 [PRINTOPT] { CONTINUE  <ifExpr(SE)> [PRINTOPT] }
 	 static void printCommand ( ) throws Exc {
 	 	    Transl.start();
 	 		SymbH.startComp();
@@ -567,7 +567,7 @@ public class Parser {
 		 		if ( startPrint ) 
 				 	Transl.ins(Operator.MODV,0); 		 			
 	 			startPrint = false;
-	 		} while ( lex.currToken() == Token.PRINTADD );
+	 		} while ( lex.currToken() == Token.CONTINUE );
 	 		Transl.ins(Operator.HALT,0);
 	 		return;		 
 	 }
@@ -593,7 +593,7 @@ public class Parser {
 
  
 	 // <serviceCommand> -> ID("variables") | ID("functions") | ID("release") | ID("labels") |
-	 //						ID("about") (BUILTIN ID | ID | IDL) | ID("debug") [ID("off") | ID("on")] | 
+	 //						ID("about") (UNDERSCORE ID | ID | IDL) | ID("debug") [ID("off") | ID("on")] | 
 	 //						ID("history") [ [MINUS] INT] ) | ID("exec") [ [MINUS] NUM ] | ID("clops") | 
 	 //						ID("save") | ID("memory") [ ID("size") ] | 
 	 //						ID("import") [ID("echo") | ID("noecho")] | EMARK
@@ -627,7 +627,7 @@ public class Parser {
 
 			 if ( checkCommand(name,"about")  ) {
 				 lex.nextToken();
-				 if ( lex.currToken() == Token.BUILTIN ) {
+				 if ( lex.currToken() == Token.UNDERSCORE ) {
 					 typeService = isAboutService; typeAbout = isAboutBuiltIn;
 					 lex.nextToken();
 					 if ( lex.currToken() == Token.ID ) {
@@ -1262,7 +1262,7 @@ public class Parser {
 	 static void funcDef ( String idN, boolean se ) throws Exc {
 		 lex.accept(Token.OPAR );
 		 SymbH.funcDef(se,ioh.nUtil());
-		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.BUILTIN) {
+		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.UNDERSCORE) {
 			 formalPar( se );
 			 while ( lex.currToken() == Token.COMMA ) {
 				 lex.printH_Comma(true); // print space after comma in history
@@ -1273,7 +1273,7 @@ public class Parser {
 		 lex.accept(Token.CPAR );
 		 if ( lex.currToken()==Token.DIV ) {
 			 lex.nextToken();
-			 if ( lex.currToken()== Token.CHAR || lex.currToken()== Token.INT ) {
+			 if ( lex.currToken()== Token.INT ) {
 				 int arity = lex.intVal();
 				 SymbH.setRetType(SymbH.functType,arity);
 				 lex.nextToken();
@@ -1286,7 +1286,7 @@ public class Parser {
 			 SymbH.setRetType(SymbH.varType,0);
 		 SymbH.endPar(); 
 	 	 lex.printH_Colon(true); // print colon with spaces on history
-		 if ( lex.currToken() == Token.COLON ) {
+		 if ( lex.currToken() == Token.MAP ) {
 			 lex.setComment(true); lex.nextToken();
 		 }
 		 else
@@ -1365,7 +1365,7 @@ public class Parser {
 
 		// <formalPar> ->  ID1 [ DIV INT ]
 	 static void formalPar ( boolean se ) throws Exc {
-		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.BUILTIN ) {
+		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.UNDERSCORE ) {
 			 String idN = "_";
 			 if ( lex.currToken() == Token.ID ) {
 				 idN = lex.IDName();
@@ -1373,7 +1373,7 @@ public class Parser {
 			 lex.nextToken();
 			 if ( lex.currToken()==Token.DIV ) {
 				 lex.nextToken();
-				 if ( lex.currToken()== Token.CHAR || lex.currToken()== Token.INT ) {
+				 if ( lex.currToken()== Token.INT ) {
 					 int arity = lex.intVal();
 					 SymbH.addPar(idN, SymbH.functType,arity);
 					 lex.nextToken();
@@ -1466,14 +1466,16 @@ public class Parser {
 		 
 	 }
 
-	 // <globSet> -> OBRACESET  (ID <varGlobSet> | DUMMY <ifExpr> ) CBRACESET  | OBRACEPRINT <printGlobSet> CBRACEPRINT 
+	 // <globSet> -> OBRACESET  (ID <varGlobSet> | DUMMY <ifExpr> ) 
+	 //							{ CONTINUE (ID <varGlobSet> | DUMMY <ifExpr> ) }
+	 //				 CBRACESET  | 
+	 //				 OBRACEPRINT <printGlobSet> CBRACEPRINT 
 		 static void globSet ( boolean se ) throws Exc {
 			 	 if ( lex.currToken() == Token.OBRACESET ) {
+			 		do {
 			 		lex.nextToken();
-					 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
+					 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) 
 						 varGlobSet(se);
-						 lex.accept(Token.CBRACESET);
-					 }
 					 else 
 						 if ( lex.currToken() == Token.DUMMY) {
 							 lex.nextToken();
@@ -1482,11 +1484,12 @@ public class Parser {
 									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
 											Exec.types[Exec.FuncT]+"- a function cannot be used into a Global Setting");		 		 									 
 							 Transl.ins(Operator.POP,0);							 
-							 lex.accept(Token.CBRACESET);
 						 }
 						 else 
-							 throw new Exc_Synt(ErrorType.EXPECTED_ID," -- found "+
+							 throw new Exc_Synt(ErrorType.EXPECTED_ID_OR_DUMMY," -- found "+
 									 		lex.tokenFullDescr());
+			 		} while ( lex.currToken() == Token.CONTINUE );
+					lex.accept(Token.CBRACESET);
 			 	 }
 			 	 else {
 			 		 //lex.nextToken();
@@ -1495,7 +1498,7 @@ public class Parser {
 			 	 }
 	 }
 	 
-	 // <printGlobSet> -> <ifExpr> [ PRINTOPT ] { PRINTADD <ifExpr> [ PRINTOPT ] }
+	 // <printGlobSet> -> <ifExpr> [ PRINTOPT ] { CONTINUE <ifExpr> [ PRINTOPT ] }
 	 static void printGlobSet ( boolean se ) throws Exc {
 	 		do {
 	 			lex.nextToken();
@@ -1509,7 +1512,7 @@ public class Parser {
 		 		}
 		 		else
 		 			Transl.ins(Operator.PRINT,0);
-	 		} while ( lex.currToken() == Token.PRINTADD );
+	 		} while ( lex.currToken() == Token.CONTINUE );
 	 }
 	 
 	 // <varGlobSet> ->  [ OSPAR <ifExpr> CSPAR ]* ( OPASSIGN <ifExpr> |
@@ -2103,7 +2106,7 @@ public class Parser {
 
 	//<fact> -> ( IDL | ID [ OPAR <callFunct> CPAR [ OPAR <callFunct1> CPAR ]  ] ) | 
 	// 				OSPAR [ <constListElems> ] CSPAR  | 
-	//               OBRACE [ <fields> ] CBRACE | BUILTIN <factBuiltIn> | 
+	//               OBRACE [ <fields> ] CBRACE | UNDERSCORE <factBuiltIn> | 
 	//               OPAR  ( <ifExpr(se)> CPAR | <lambda> CPAR [ OPAR <callFunct1> CPAR ] ) 
 	// 				 INT | LONG | DOUBLE | CHAR | STRING | NULL | TRUE | FALSE | TYPE
 	 static int fact (  boolean se ) throws Exc {
@@ -2164,7 +2167,7 @@ public class Parser {
 			 Transl.ins(Operator.DEREF,0);
 			 return retType; 
 		 }
-		 if ( lex.currToken() == Token.BUILTIN ) { 
+		 if ( lex.currToken() == Token.UNDERSCORE ) { 
 			 lex.nextToken();
 			 return factBuiltIn(se);
 		 }
