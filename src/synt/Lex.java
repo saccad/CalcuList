@@ -220,7 +220,7 @@ public class Lex {
   }
 
 
-  //** gets token ID or TRUE or FALSE
+  //** gets token ID or Reserved Words 
   void getName() throws Exc {
    		svalue = ""; label = ""; 
    		int nChar=0;
@@ -236,7 +236,7 @@ public class Lex {
     	History.addSubStr(svalue);
   }
   
-  //** gets token ID or TRUE or FALSE
+  //** gets token ID or Reserved Words
   void getName1() throws Exc {
         if ( svalue.equals("true")) {
     		token = Token.TRUE;

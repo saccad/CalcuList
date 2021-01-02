@@ -158,25 +158,33 @@ public class OutputH {
 		}
 
 		public static void printOneLabel(String label) throws Exc {
-			System.out.print("\n------VARIABLES WITH LABEL "+label+"-------\n");
+			System.out.print("\n------VARIABLES/FUNCTIONS WITH LABEL "+label+"-------\n");
 			int iL = SymbolTableH.indLabel(label);
 			if ( SymbolTableH.labelComment(iL) != null )
 				System.out.println("/*"+SymbolTableH.labelComment(iL)+"*/");		
 			int iLabel = 1; int nL=label.length();
 			for ( int i =0; i < SymbolTableH.nSymb(); i++)
 				if ( SymbolTableH.hasLabelSymb(i) && SymbolTableH.labelSymb(i).equals(label) ) {
-					int iVar = SymbolTableH.iVarFunc(i);
-					System.out.print(iLabel+": (GV"+(iVar)+")@["+Exec.addrGV(iVar)+"] ");
-					System.out.print(SymbolTableH.idSymb(i).substring(nL+1));
-					printVarVal(iVar);
-					System.out.println("");
+					int iVarFunct = SymbolTableH.iVarFunc(i);
+					if ( SymbolTableH.tSymb(i)== SymbH.varType) {
+						System.out.print(iLabel+": (GV"+(iVarFunct)+")@["+Exec.addrGV(iVarFunct)+"] ");
+						System.out.print("\t"+SymbolTableH.idSymb(i).substring(nL+1));
+						printVarVal(iVarFunct);
+						System.out.println("");
+					}
+					else
+					{
+						System.out.print(iLabel+": (F"+(iVarFunct)+") ");		
+						System.out.print("\t"+SymbolTableH.finfo_source(i).substring(nL+1));
+						System.out.println("");						
+					}
 					iLabel++;
 				}
-			System.out.print("---End of VARIABLES WITH LABEL "+label+"---\n \n");					
+			System.out.print("---End of VARIABLES/FUNCTIONS WITH LABEL "+label+"---\n \n");					
 		}
 
 
-		public static void printLabels() {
+		public static void printLabels( boolean setLabel, String setLabelID ) {
 			System.out.print("\n------LABELS-------\n");
 			int iLabel =1;
 			for ( int i =0; i < SymbolTableH.nLabels(); i++) {
@@ -184,7 +192,11 @@ public class OutputH {
 					System.out.println("");
 					iLabel++; 
 				}
-			System.out.print("---End of LABELS---\n \n");					
+			System.out.println("---End of LABELS---\n");	
+			if ( setLabel )
+				System.out.print("*  CURRENT LABEL: "+setLabelID+"\n \n");
+			else
+				System.out.print("*  NO CURRENT LABEL\n \n");
 		}
 
 		public static void printFuns( int nUtil) {
@@ -365,37 +377,50 @@ public class OutputH {
 			}
 			System.out.println();
 		}
-		public static void printServiceList() throws Exc{
-			System.out.println("\n------LIST OF SERVICE COMMANDS------");
-			System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
-			System.out.println(" - !functions: lists all function names and their arguments");
-			System.out.println(" - !labels: lists all labels that have been defined in the current session");
-			System.out.println(" - !about ID: describes some info on the variable, function or label with name ID");
-			System.out.println(" - !history k: lists all statements (definitions and queries) of the session, ordered from 1 to n, corresponding to the last command\n"+
-					"               -  if k > 0, lists the statements from k to n\n" +
-					"               -  if k < 0, lists the statements from n-k to n\n" +
-					"               -  if k = 0, lists the last statement only\n" +
-					"               -  if k is missing, lists all statements");			
-			System.out.println(" - !exec k: executes the statement with index p, where \n"+
-					"               -  p = k if k > 0\n" +
-					"               -  p = n-k if k < 0\n" +
-					"               -  p = n if k = 0 or k is missing");			
-			System.out.println(" - !import echo/n0echo: imports the statements stored into a file \n"+
-					"               -  the name of the file is to be given after the prompt\n"+
-					"               -  option 'echo':  the imported statements are displayed on the screen\n"+
-					"               -  option 'noecho':  no display\n"+
-					"               -  no option:  the option 'echo' is assumed");
-			System.out.println(" - !save: all session statements are saved into a text file \n"+
-					"               -  the name of the file is to be given after the prompt");
-			System.out.println(" - !clops: displays the number of clops (micro-instructions of CalcuList Machine) for the last query or variable definition");
-			System.out.println(" - !release: displays details on the current CalcuList release");
-			System.out.println(" - !memory: displays the internal memory, i.e., the global variables in the stack and dynamic structures in the heap");
-			System.out.println(" - !tailOpt on/off: optimization of tail recursion implementation will be enabled or disabled\n"+
-					"               -  by default the optimization is enabled");
-			System.out.println(" - !debug on/off: debug will be enabled or disabled\n"+
-					"               -  by default the debug is disabled");
-			System.out.println(" * each of the above commands can be abbreviated by any non-empty prefix of it");
-			System.out.print("---End of LIST OF SERVICE COMMANDS---\n \n");					
+		public static void printServiceList(boolean isDefault ) throws Exc{
+			if (! isDefault ) {
+				System.out.println("\n------TABLE OF SYMBOLS------");
+				for (int i=0; i<SymbolTableH.nSymb(); i++) {
+					System.out.print(" ("+i+")");
+					System.out.print("\t idN="+SymbolTableH.idSymb(i));
+					System.out.print("\t type="+SymbolTableH.tSymb(i));
+					System.out.print("\t iVarFunct="+SymbolTableH.iVarFunc(i));
+					System.out.print("\t label="+SymbolTableH.labelSymb(i));
+					System.out.println();
+				}
+				System.out.println("\n---END OF TABLE OF SYMBOLS---\n \n");
+			}
+			else {
+				System.out.println("\n------LIST OF SERVICE COMMANDS------");
+				System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
+				System.out.println(" - !functions: lists all function names and their arguments");
+				System.out.println(" - !labels: lists all labels that have been defined in the current session");
+				System.out.println(" - !about ID: describes some info on the variable, function or label with name ID");
+				System.out.println(" - !history k: lists all statements (definitions and queries) of the session, ordered from 1 to n, corresponding to the last command\n"+
+						"               -  if k > 0, lists the statements from k to n\n" +
+						"               -  if k < 0, lists the statements from n-k to n\n" +
+						"               -  if k = 0, lists the last statement only\n" +
+						"               -  if k is missing, lists all statements");			
+				System.out.println(" - !exec k: executes the statement with index p, where \n"+
+						"               -  p = k if k > 0\n" +
+						"               -  p = n-k if k < 0\n" +
+						"               -  p = n if k = 0 or k is missing");			
+				System.out.println(" - !import echo/n0echo: imports the statements stored into a file \n"+
+						"               -  the name of the file is to be given after the prompt\n"+
+						"               -  option 'echo':  the imported statements are displayed on the screen\n"+
+						"               -  option 'noecho':  no display\n"+
+						"               -  no option:  the option 'echo' is assumed");
+				System.out.println(" - !save: all session statements are saved into a text file \n"+
+						"               -  the name of the file is to be given after the prompt");
+				System.out.println(" - !clops: displays the number of clops (micro-instructions of CalcuList Machine) for the last query or variable definition");
+				System.out.println(" - !release: displays details on the current CalcuList release");
+				System.out.println(" - !memory: displays the internal memory, i.e., the global variables in the stack and dynamic structures in the heap");
+				System.out.println(" - !tailOpt on/off: optimization of tail recursion implementation will be enabled or disabled\n"+
+						"               -  by default the optimization is enabled");
+				System.out.println(" - !debug on/off: debug will be enabled or disabled\n"+
+						"               -  by default the debug is disabled");
+				System.out.println(" * each of the above commands can be abbreviated by any non-empty prefix of it");
+				System.out.print("---End of LIST OF SERVICE COMMANDS---\n \n");
+			}
 		}
-
 }

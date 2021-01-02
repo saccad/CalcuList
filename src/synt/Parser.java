@@ -57,13 +57,15 @@ public class Parser {
 		 	Token.PRINT,
 		 	Token.EMARK,
 		 	Token.SCOLON, 
+		 	Token.COLON,
 		 	Token.HALT
 		 };
 	static Token[] first_statement = { 
 		 	Token.ID,
 		 	Token.IDL,
 		 	Token.PRINT,
-		 	Token.EMARK
+		 	Token.EMARK,
+		 	Token.COLON
 		 };
 	static Token[] first_varDef = { 
 			Token.OSPAR,
@@ -235,6 +237,7 @@ public class Parser {
 	 static int isComp = 2;
 	 static int isService = 3;
 	 static int isLabDef = 4;
+	 static int isSetLab = 5;
 	 
 	 static int typeService; // it will take one of the following values
 	 static final int isVarService = 0;
@@ -263,12 +266,20 @@ public class Parser {
 	 static final int isAboutVAR = 2;
 	 static final int isAboutFUNCT = 3;
 
+	 static int typeServiceList; // associated to isAboutService - it will take one of the following values
+	 static final int isDefaultList = 0;
+	 static final int isSymbolTable = 1;
+
 	 static String idAbout; // associated to isAboutLABEL,isAboutVAR, isAboutFUNCT
 
 	 static int numHistory; // associated to isHistoryNumService
 	 
 	 static int nLocVars=0; // used within funcDef
 	 
+	 static boolean setLabel=false; // true if a label has been set as default for variables/functions
+	 static String setLabelID = null; // default label
+	 static boolean setLabel_tmp=false; 
+	 static String setLabelID_tmp = null; 
  
 	 static boolean isDebug = false; 
 	 static boolean isTailOpt = true;
@@ -320,7 +331,7 @@ public class Parser {
 				 			if ( typeDef == isVarDef || typeDef == isFunctDef ) 
 				 				SymbH.commitVarFunc(History.command(History.nCommand()-1));
 				 			else 
-				 				if ( typeDef == isLabDef  )
+				 				if ( typeDef == isLabDef  ) 
 				 					SymbH.commitLabDef();
 					 			else
 					 				if ( typeDef == isService )
@@ -343,6 +354,11 @@ public class Parser {
 					 				PrintOutput.setStandardOutStream();
 					 				PrintOutput.printOutput(false);
 					 			}
+					 			else 
+					 				if ( typeDef == isSetLab ) {
+					 					setLabel=setLabel_tmp;
+					 					setLabelID=setLabelID_tmp;
+					 				}
 		 				}
 		 				ioh.setPrompt(true);
 			 			lex.accept(Token.SCOLON);		 					
@@ -405,18 +421,42 @@ public class Parser {
 		ioh.bye();	 
 	 }
 	 
-	 // <statement> -> IDL  <varDef> | ID <varFunctLabDef> | 
+	 // <statement> ->  COLON [ ID | HASH ] |
+	 //					IDL  <varDef> | ID <varFunctLabDef> | 
 	 //					PRINT <printCommand> | EMARK <serviceCommand>
 	 static void statement ( ) throws Exc {
+		 if ( lex.currToken() == Token.COLON ) {
+			 typeDef= isSetLab;
+			 lex.printH_Colon(true); // print spaced COLON on history
+			 lex.nextToken();
+			 if ( lex.currToken() == Token.HASH ) {
+				 setLabel_tmp=false; setLabelID_tmp=null;
+				 lex.nextToken();
+			 }
+			 else
+				 if ( lex.currToken() == Token.ID ) {
+					 String idN = lex.IDName();
+					 if (SymbH.isLabel(idN)) {
+						 setLabel_tmp=true; setLabelID_tmp=idN;
+						 lex.nextToken();
+					 }
+					 else
+		 				 throw new Exc_Synt(ErrorType.UNDEF_LABEL, ": "+idN );				 						 
+				 }
+				 else
+	 				 throw new Exc_Synt(ErrorType.EXPECTED_ID_OR_HASH,
+	 						 " - found "+lex.tokenFullDescr() );				 
+			 return;
+		 }
+		 
 		 if ( lex.currToken() == Token.IDL ) {
 		 	 Transl.start(); 
 			 String idN = lex.IDName();
 			 boolean hasLabel = true; String label = lex.currLabel();
 		 	 History.startCommand(); History.addSubStr(idN);
 			 lex.nextToken();
-			 typeDef=isVarDef;
-			 SymbH.startVarDef(idN,hasLabel,label);
- 			 varDef();
+			 varFunctDef(idN,hasLabel,label);
+// 			 varDef();
  			 return;
 		 }
 		 if ( lex.currToken() == Token.ID ) {
@@ -442,7 +482,7 @@ public class Parser {
 			 throw raiseExc(first_statement);
 	 }
 	 
-	 // <varFunctLabDef> -> <varDef> | STAR <funcDef(SE)> |  <funcDef(noSE)> | COLON <labDef>  
+	 // <varFunctLabDef> -> <varFunctDef> | COLON <labDef>  
 	 static void varFunctLabDef ( String idN ) throws Exc {
 		 if (lex.currToken() == Token.COLON ) {
  			 lex.setComment(true); 
@@ -450,37 +490,50 @@ public class Parser {
  			 lex.nextToken();
  			 labDef(idN);
 		 }
-		 else
-			 if ( inFirst(first_varDef)  ) {
-				typeDef=isVarDef;
+		 else {
 				boolean hasLabel=false; String label="";
-				SymbH.startVarDef(idN,hasLabel,label);
-	 			varDef();
+			 	varFunctDef(idN,hasLabel,label);
+		}
+	 }
+	 // <varFunctDef> -> <varDef> | STAR <funcDef(SE)> |  <funcDef(noSE)>   
+	 static void varFunctDef ( String idN, boolean hasLabel, String label ) throws Exc {
+		 if ( setLabel && !hasLabel ) { // the usage of implicit label is set
+			 String idN_full = setLabelID+"."+idN;
+			 if ( SymbH.isLabel(setLabelID) ) { // the labeled ID exists
+				 idN=idN_full; hasLabel=true; label= setLabelID;
+			 }			 			
+		 };
+		 if ( inFirst(first_varDef)  ) {
+			typeDef=isVarDef;
+			SymbH.startVarDef(idN,hasLabel,label);
+ 			varDef();
+		 }
+		 else {
+			 boolean se = false;
+			 if (lex.currToken() == Token.STAR ) { 
+				 se=true;
+				 lex.nextToken();
 			 }
-			 else {
-				 boolean se = false;
-				 if (lex.currToken() == Token.STAR ) { 
-					 se=true;
-					 lex.nextToken();
-				 }
-				 if (lex.currToken() == Token.OPAR ) {
-					 typeDef=isFunctDef;
-					 SymbH.startFunctDef(idN); 
-					 funcDef(idN,se);
-				 }
-				 else
-		 			 if( lex.currToken() == Token.SCOLON )
-		 					throw new Exc_Synt(ErrorType.MISSING_PRINT);
-		 				 else
-		 					 throw raiseExc(first_varFunctLabDef);
-			 }	 
+			 if (lex.currToken() == Token.OPAR ) {
+				 typeDef=isFunctDef;
+				 SymbH.startFunctDef(idN,hasLabel,label); 
+				 funcDef(idN,se,hasLabel,label);
+			 }
+			 else
+	 			 if( lex.currToken() == Token.SCOLON )
+	 					throw new Exc_Synt(ErrorType.MISSING_PRINT);
+	 				 else
+	 					 throw raiseExc(first_varFunctLabDef);
+		 }	 
 	 }
 	 
-	 // <labDef> -> [COMMENT] ID1 { COMMA ID1 } 
-	 static void labDef ( String idN ) throws Exc {
+	 // <labDef> -> [COMMENT] ID [ [STAR] DIV INT ] 
+	 //				{ COMMA ID [ [STAR] DIV INT ]  } 
+	 static void labDef ( String idNL ) throws Exc {
  			 Transl.ins(Operator.INIT,SymbH.nVar());
  			 typeDef=isLabDef;
- 			 SymbH.startLabelDef(idN);
+ 			 SymbH.startLabelDef(idNL);
+ 			 String idN;
  			 if ( lex.currToken()==Token.COMMENT ) {
  				 SymbH.addLabelComment(lex.commentString());
  				 if ( lex.isCommentOverflow() )
@@ -488,25 +541,54 @@ public class Parser {
  				 lex.nextToken();
  			 }
  			 lex.setComment(false); 
- 			 labVar();
+ 			 if ( lex.currToken() == Token.ID ) 
+ 				 idN = lex.IDName();
+ 			 else
+ 				 throw new Exc_Synt(ErrorType.EXPECTED_ID,
+ 						 " - found "+lex.tokenFullDescr() );
+ 			 lex.accept(Token.ID );
+ 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV) 
+ 				 labFunct(idN);
+ 			 else
+ 				 labVar(idN);
  			 while (lex.currToken() == Token.COMMA) {
 				 lex.printH_Comma(true); // print space after comma in history
  				 lex.nextToken(); 
- 				 labVar();		 	 				 
+ 	 			 if ( lex.currToken() == Token.ID ) 
+ 	 				 idN = lex.IDName();
+ 	 			 else
+ 	 				 throw new Exc_Synt(ErrorType.EXPECTED_ID,
+ 	 						 " - found "+lex.tokenFullDescr() );		 
+ 	 			 lex.accept(Token.ID );
+ 	 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV) 
+ 	 				 labFunct(idN);
+ 	 			 else
+ 	 				 labVar(idN);
  			 };
  		 	 Transl.ins(Operator.HALT,0);
  			 return;
 	 }
 	 
 	 // method called by <labDef>
-	 static void labVar ( ) throws Exc {
-		 String idN; 
-		 if ( lex.currToken() == Token.ID ) 
-			 idN = lex.IDName();
-		 else
-			 throw new Exc_Synt(ErrorType.EXPECTED_ID,
-					 " - found "+lex.tokenFullDescr() );		 
-		 lex.accept(Token.ID );
+	 static void labFunct ( String idN ) throws Exc {
+		 boolean se = false;
+			 if ( lex.currToken() == Token.STAR) {
+				 se=true;
+				 lex.nextToken();
+			 }
+			 lex.accept(Token.DIV);
+			 if ( lex.currToken()== Token.INT ) {
+				 int arity = lex.intVal();
+				 lex.nextToken();
+				 SymbH.addLabFunct(idN,se,arity);
+			 }
+			 else
+					throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+							"-- expected INT for function arity - found " + lex.tokenFullDescr());					 		
+	 }
+	 
+	 // method called by <labDef>
+	 static void labVar ( String idN ) throws Exc {
 		 int indLabVar = SymbH.addLabVar(idN); 
 		 if ( indLabVar < 0 ) {
 			 Transl.ins(Operator.PUSHN,0); // default null value for labeled variables
@@ -577,7 +659,7 @@ public class Parser {
 		 String idName = lex.IDName();
 		 boolean hasLabel= lex.currToken()==Token.IDL;
 		 String label =   hasLabel? lex.currLabel(): null;
-		 int idType = SymbH.setCurrID(idName,hasLabel,label);
+		 int idType = SymbH.setCurrID(idName,hasLabel,label,setLabel, setLabelID);
 		 if ( idType == SymbH.undefID )
 				throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
 		 if ( idType == SymbH.functType )
@@ -601,7 +683,13 @@ public class Parser {
 	 	 typeDef=isService;
 		 if ( lex.currToken() == Token.EMARK  ) {
 			 lex.nextToken();
-			 typeService=isServiceList;			 
+			 typeService=isServiceList;	
+			 if (lex.currToken()==Token.STAR) {
+				 typeServiceList=isSymbolTable;
+				 lex.nextToken();
+			 }
+			 else
+				 typeServiceList=isDefaultList;
 			 return;
 		 }
 		 if ( lex.currToken() == Token.ID ) {
@@ -1259,7 +1347,7 @@ public class Parser {
 	// <funcDef> -> OPAR [<formalPar> { COMMA <formalPar> } ] CPAR  
 	// 					[ DIV INT ] COLON [COMMENT]
 	//					[LT ID1 [STAR] { COMMA ID1 [STAR] } GT] <ifExprSet>
-	 static void funcDef ( String idN, boolean se ) throws Exc {
+	 static void funcDef ( String idN, boolean se, boolean hasLabel, String label ) throws Exc {
 		 lex.accept(Token.OPAR );
 		 SymbH.funcDef(se,ioh.nUtil());
 		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.UNDERSCORE) {
@@ -1285,13 +1373,12 @@ public class Parser {
 		 else
 			 SymbH.setRetType(SymbH.varType,0);
 		 SymbH.endPar(); 
-	 	 lex.printH_Colon(true); // print colon with spaces on history
 		 if ( lex.currToken() == Token.MAP ) {
 			 lex.setComment(true); lex.nextToken();
 		 }
 		 else
 			 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.currTokenDescr()+
-					 " - expected: ':'");
+					 " - expected: '->'");
 		 if ( lex.currToken()==Token.COMMENT ) {
 			 SymbH.addFunctComment(lex.commentString());
 			 if ( lex.isCommentOverflow() )
@@ -1301,6 +1388,8 @@ public class Parser {
 		 }
 		 lex.setComment(false); 
 		 nLocVars=0;
+		 if ( hasLabel )
+			 SymbH.addCurrLabel(label);
  		 if ( lex.currToken() == Token.GTLT) {
  			 	 if ( lex.GTLT_Op() != GTLTOpType.LT)
  			 		throw new Exc_Synt(ErrorType.WRONG_FUNCT_DEF, ": expected '<' - found "+lex.tokenFullDescr());
@@ -1312,7 +1401,7 @@ public class Parser {
 	 					 lex.nextToken();
 	 	 				 if ( !se )
 	 	 					 throw new Exc_Synt(ErrorType.GLOB_VAR_IN_FUNCT, " without side effects");	 					 
-	 					 SymbH.addCurrLabel(idNLV);
+	 	 				 SymbH.addCurrLabel(idNLV);
 	 				 }
 	 				 else {
 	 					 SymbH.addLoc(idNLV); 
@@ -1420,7 +1509,7 @@ public class Parser {
 					throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
 							"- the lambda function arity is different from the defining function arity return");			 
 			 if ( lex.currToken() != Token.COLON &&  lex.currToken() != Token.SCOLON ) 
-				 throw new Exc_Sem(ErrorType.WRONG_LAMBDA, 
+				 throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
 						"-- expected ':' or ';' to terminate lambda function definition - found " + lex.tokenFullDescr());					 			 
 			 return retType;
 		 }
@@ -1522,7 +1611,7 @@ public class Parser {
 		 String idN = lex.IDName(); 
 		 boolean hasLabel=lex.currToken()==Token.IDL;
 		 String label =   hasLabel? lex.currLabel(): null;
-		 int type = SymbH.setCurrID(idN,hasLabel,label);
+		 int type = SymbH.setCurrID(idN,hasLabel,label,setLabel,setLabelID);
 		 if ( type == SymbH.undefID )
 				throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idN);
 		 if ( type == SymbH.functType )
@@ -2114,7 +2203,7 @@ public class Parser {
 			 String idName = lex.IDName();
 			 boolean hasLabel= lex.currToken()==Token.IDL;
 			 String label =   hasLabel? lex.currLabel(): null;
-			 int idType = SymbH.setCurrID(idName,hasLabel,label);
+			 int idType = SymbH.setCurrID(idName,hasLabel,label,setLabel,setLabelID);
 			 if ( idType == SymbH.undefID )
 					throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
 			 int retTypeF=SymbH.currFunctRetType();
@@ -2473,7 +2562,7 @@ public class Parser {
 							throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, "- expected variable type");
 					 lambda(true,formPar_t,iFunctCalled,iPar);
 					 if ( lex.currToken() != Token.COMMA &&  lex.currToken() != Token.CPAR ) 
-						 throw new Exc_Sem(ErrorType.WRONG_LAMBDA, 
+						 throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
 								"-- expected ',' or ')' to terminate lambda function definition - found " + lex.tokenFullDescr());					 
 				 }
 				 else {
@@ -2972,7 +3061,7 @@ public class Parser {
 	// execution of a command service
 	 static void serviceCommandExec () throws Exc {
 		 switch ( typeService ) {
-		 	case isServiceList: OutputH.printServiceList(); break;
+		 	case isServiceList: OutputH.printServiceList(typeServiceList==isDefaultList); break;
 		 	case isVarService: OutputH.printVars(); break;
 		 	case isFunctService: OutputH.printFuns(ioh.nUtil()); break;
 		 	case isReleaseService: OutputH.printRelease(); break;
@@ -2982,7 +3071,7 @@ public class Parser {
 		 	case isTailOptOffService: isTailOpt = false; OutputH.printTailOpt(isTailOpt); break;
 		 	case isHistoryService: OutputH.printHist(0,true); break;
 		 	case isHistoryNumService: OutputH.printHist(numHistory,false); break;
-		 	case isLabelService: OutputH.printLabels(); break;
+		 	case isLabelService: OutputH.printLabels(setLabel,setLabelID); break;
 		 	case isAboutService: if ( typeAbout == isAboutBuiltIn) OutputH.printOneBuiltIn(builtInF); else
 		 						 if ( typeAbout == isAboutLABEL) OutputH.printOneLabel(idAbout); else
 			 				     if ( typeAbout == isAboutFUNCT) OutputH.printOneFunct(idAbout,ioh.nUtil()); else

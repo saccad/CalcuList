@@ -37,22 +37,23 @@ public class SymbolTableH {
 	static int nLambdaFuncts=0;
 	static int nCommLambdaFuncts = 0; // number of committed lambda functions
 	static int nLabels=0;
-	static int nCurrLabVars=0;
+	static int nCurrLabVarFuncts;
+	static int nPrevLabFuncts;
 	static int nVarTmp; // including on-going defined labeled variables
+	static int nFunctTmp; // including on-going defined labeled functions
 	static int nSymbTmp;
 	public static ArrayList<Symbol> symbols = new ArrayList<Symbol>(symbolsInitCapacity);
 	static ArrayList<LambdaFunctInfo> lambdaFuncts = new ArrayList<LambdaFunctInfo>(lambdaFunctsInitCapacity);
 	static ArrayList<String> labels= new ArrayList<String>(labelsInitCapacity); // labels
 	static ArrayList<String> labComments= new ArrayList<String>(labelsInitCapacity); // labels
-	static ArrayList<String> currLabVars= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
+	static ArrayList<String> currLabVarFuncts= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
+	static ArrayList<Integer> currPrevLabFuncts= new ArrayList<Integer>(labelsInitCapacity); // labeled variables that are currently defined
+	static ArrayList<String> currPrevLabFunctNames= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
+	static ArrayList<Integer> currPrevLabFunctArities= new ArrayList<Integer>(labelsInitCapacity); // labeled variables that are currently defined
 
-	public static void printLambda() {
-		System.out.println("** nL="+nLambdaFuncts+"  nCommLambdaFuncts="+nCommLambdaFuncts);
-	}
-	static void initLabVars () {
-		nSymbTmp=nSymb; nVarTmp=nVar;
-		nCurrLabVars=0;
-	}
+//	public static void printLambda() {
+//		System.out.println("** nL="+nLambdaFuncts+"  nCommLambdaFuncts="+nCommLambdaFuncts);
+//	}
 	
 	static void commitLambdaFuncts () {
 		nCommLambdaFuncts = nLambdaFuncts;
@@ -62,8 +63,34 @@ public class SymbolTableH {
 		nLambdaFuncts = nCommLambdaFuncts;
 	}
 	
-	static void addPrevLabVar ( String idN ) throws Exc {
-		currLabVars.add(nCurrLabVars, idN); nCurrLabVars++;	
+	static void initLabVarFuncts () {
+		nSymbTmp=nSymb; nVarTmp=nVar; nFunctTmp=nFunct;
+		nCurrLabVarFuncts=0; nPrevLabFuncts=0;
+	}
+
+	static void addPrevLabFunct ( int iFunct, String idN_full, int arity ) throws Exc {
+		currPrevLabFuncts.add(nPrevLabFuncts, iFunct); 
+		currPrevLabFunctNames.add(nPrevLabFuncts, idN_full); 
+		currPrevLabFunctArities.add(nPrevLabFuncts, arity); 
+		nPrevLabFuncts++;	
+	}
+
+	static void addCurrLabVarFuncts ( String idN ) throws Exc {
+		currLabVarFuncts.add(nCurrLabVarFuncts, idN); nCurrLabVarFuncts++;	
+	}
+
+	static void addLabFunct ( String idN, String label, String idN_full, boolean se, int arity ) throws Exc {
+		symbols.add(nSymbTmp, new Symbol(idN,true,label,SymbH.functType));
+		symbols.get(nSymbTmp).iVarFunc= nFunctTmp;
+		symbols.get(nSymbTmp).finfo = new FunctInfo(se); 
+		symbols.get(nSymbTmp).finfo.code = Transl.nullBodyFunct (idN_full, arity); 
+		String source = idN_full+"("; 
+		for (int i=0; i<arity; i++) {
+			symbols.get(nSymbTmp).finfo.addVarParam("_");
+			source += i==0? "_": ", _";
+		}
+		symbols.get(nSymbTmp).finfo.source = source+") -> null"; 
+		nSymbTmp++; nFunctTmp++;
 	}
 	
 	static void addLabVar ( String idN, String label ) throws Exc {
@@ -72,9 +99,22 @@ public class SymbolTableH {
 		nSymbTmp++; nVarTmp++;
 	}
 	
-	static void endLabVars(String label, boolean isNewLabel, String comment ) throws Exc {
+	static void endLabVarFuncts(String label, boolean isNewLabel, String comment ) throws Exc {
 		nVar= nVarTmp;
+		nFunct=nFunctTmp;
 		nSymb= nSymbTmp;
+		for ( int i=0; i<nPrevLabFuncts; i++ ) {
+			int k= currPrevLabFuncts.get(i);
+			symbols.get(k).finfo.code = 
+					Transl.nullBodyFunct (currPrevLabFunctNames.get(i), currPrevLabFunctArities.get(i)); 
+			String source = currPrevLabFunctNames.get(i)+"("; 
+			int n= symbols.get(k).finfo.nP();
+			for (int j=0; j<n; j++) {
+				symbols.get(k).finfo.addVarParam("_");
+				source += j==0? "_": ", _";
+			}
+			symbols.get(k).finfo.source = source+") -> null"; 
+		}		
 		if ( isNewLabel ) {
 			labels.add(nLabels,label); labComments.add(nLabels,comment);
 			nLabels++;
@@ -198,8 +238,8 @@ public class SymbolTableH {
 	}
 	
 	static int searchCurrLabID ( String idN ){
-		for ( int i = 0; i < nCurrLabVars; i++ )
-			if ( currLabVars.get(i).equals(idN) )
+		for ( int i = 0; i < nCurrLabVarFuncts; i++ )
+			if ( currLabVarFuncts.get(i).equals(idN) )
 				return i;
 		return -1;
 	}

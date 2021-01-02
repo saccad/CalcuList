@@ -135,6 +135,7 @@ public class Exc extends Exception {
 		UNDEF_ID("Undefined Identifier"),
 		EXPECTED_ID("Exepected Identifier"),
 		EXPECTED_ID_OR_DUMMY("Exepected Identifier or '#='"),
+		EXPECTED_ID_OR_HASH("Exepected Identifier or '#'"),
 		WRONG_ACT_PARAM("Actual Parameter Type Mismatch"),
 		WRONG_ACT_PAR_NUM("Actual Parameter Number Mismatch"),
 		MISSING_PRINT("Missing '^' at the beginning"),
@@ -164,7 +165,9 @@ public class Exc extends Exception {
 		WRONG_FORM_PAR_NUM("Wrong Number of Formal Parameters"),
 		DUPL_ID("Duplicated Formal Parameter or Labeled Variable Name"),
 		DUPL_LABEL("Duplicated Label"),
-		DUPL_LAB_VAR("Duplicated Labeled Variable"),
+		DUPL_LAB_VAR_FUNCT("Duplicated Labeled Variable or Function"),
+		WRONG_LAB_VAR("Labeled Variable Previously Defined as Function"),
+		WRONG_LAB_FUNCT("Labeled Function Previously Defined as Variable"),
 		WRONG_PAR_TYPE("Wrong Parameter Type"),
 		WRONG_RET_TYPE("Wrong Return Type");
 		final String text;
