@@ -134,7 +134,7 @@ public class Exc extends Exception {
 		WRONG_EXP_TYPE("Type Mismatch"),
 		UNDEF_ID("Undefined Identifier"),
 		EXPECTED_ID("Exepected Identifier"),
-		EXPECTED_ID_OR_DUMMY("Exepected Identifier or '#='"),
+		EXPECTED_ID_OR_DUMMY("Exepected Identifier or '_='"),
 		EXPECTED_ID_OR_HASH("Exepected Identifier or '#'"),
 		WRONG_ACT_PARAM("Actual Parameter Type Mismatch"),
 		WRONG_ACT_PAR_NUM("Actual Parameter Number Mismatch"),

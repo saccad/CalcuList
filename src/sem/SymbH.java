@@ -558,7 +558,7 @@ public class SymbH {
 							return varType;
 						}
 						else
-							return setCurrID_Funct(j);
+							return setCurrID_Funct(i);
 					}		
 				}
 				// idN must be a function different from the function being defined 

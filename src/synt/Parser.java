@@ -421,7 +421,7 @@ public class Parser {
 		ioh.bye();	 
 	 }
 	 
-	 // <statement> ->  COLON [ ID | HASH ] |
+	 // <statement> ->  COLON [ ID | UNDERSCORE ] |
 	 //					IDL  <varDef> | ID <varFunctLabDef> | 
 	 //					PRINT <printCommand> | EMARK <serviceCommand>
 	 static void statement ( ) throws Exc {
@@ -429,7 +429,7 @@ public class Parser {
 			 typeDef= isSetLab;
 			 lex.printH_Colon(true); // print spaced COLON on history
 			 lex.nextToken();
-			 if ( lex.currToken() == Token.HASH ) {
+			 if ( lex.currToken() == Token.UNDERSCORE ) {
 				 setLabel_tmp=false; setLabelID_tmp=null;
 				 lex.nextToken();
 			 }
@@ -499,7 +499,7 @@ public class Parser {
 	 static void varFunctDef ( String idN, boolean hasLabel, String label ) throws Exc {
 		 if ( setLabel && !hasLabel ) { // the usage of implicit label is set
 			 String idN_full = setLabelID+"."+idN;
-			 if ( SymbH.isLabel(setLabelID) ) { // the labeled ID exists
+			 if ( SymbH.iSymb(idN_full)>=0 ) { // the labeled ID exists
 				 idN=idN_full; hasLabel=true; label= setLabelID;
 			 }			 			
 		 };
@@ -1555,8 +1555,8 @@ public class Parser {
 		 
 	 }
 
-	 // <globSet> -> OBRACESET  (ID <varGlobSet> | DUMMY <ifExpr> ) 
-	 //							{ CONTINUE (ID <varGlobSet> | DUMMY <ifExpr> ) }
+	 // <globSet> -> OBRACESET  (ID <varGlobSet> | UNDERSCORE ASSIGN <ifExpr> ) 
+	 //						{ CONTINUE (ID <varGlobSet> | UNDERSCORE ASSIGN <ifExpr> ) }
 	 //				 CBRACESET  | 
 	 //				 OBRACEPRINT <printGlobSet> CBRACEPRINT 
 		 static void globSet ( boolean se ) throws Exc {
@@ -1566,8 +1566,9 @@ public class Parser {
 					 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) 
 						 varGlobSet(se);
 					 else 
-						 if ( lex.currToken() == Token.DUMMY) {
+						 if ( lex.currToken() == Token.UNDERSCORE) {
 							 lex.nextToken();
+							 lex.accept(Token.ASSIGN);
 							 int retType=ifExpr(se);
 							 if ( retType >= Exec.FuncT )
 									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 

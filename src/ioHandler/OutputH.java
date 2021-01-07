@@ -22,6 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package ioHandler;
 
+import java.util.regex.*;
+
 import error.Exc;
 import sem.SymbH;
 import sem.SymbolTableH;
@@ -36,6 +38,9 @@ public class OutputH {
 	  private static boolean isPrompt=true; // true if the previous line ends with semicolon
 	  static private String release = "4.3.1";
 	  static private String releaseDate = "December 24, 2020";
+	  
+	  static String labelP = "[a-zA-Z]\\w*\\u002E.*";
+
 	  
 	  static void printStart() {
 		    System.out.print (
@@ -174,8 +179,12 @@ public class OutputH {
 					}
 					else
 					{
-						System.out.print(iLabel+": (F"+(iVarFunct)+") ");		
-						System.out.print("\t"+SymbolTableH.finfo_source(i).substring(nL+1));
+						System.out.print(iLabel+": (F"+(iVarFunct)+") ");
+						String source = SymbolTableH.finfo_source(i);
+						if ( Pattern.matches(labelP,source) )
+							System.out.print("\t"+source.substring(nL+1));
+						else
+							System.out.print("\t"+source);							
 						System.out.println("");						
 					}
 					iLabel++;

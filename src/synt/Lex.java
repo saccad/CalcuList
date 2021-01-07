@@ -38,7 +38,7 @@ public class Lex {
 		TYPE("TYPE"), QMARK("'?'"), UNDERSCORE("'_'"), DOT("'.'"),
 		OPAR("'('"), CPAR("')'"), PLUS("'+'"), MINUS("'-'"), STAR("'*'"), 
 		DIV("'/'"), DIVTR("'//'"), COMMA("','"), 
-		SCOLON("';'"), ASSIGN("'='"), OPASSIGN("<OP>="), DUMMY("'#='"),
+		SCOLON("';'"), ASSIGN("'='"), OPASSIGN("<OP>="), 
 		GTLT("GTLT"), EQNEQ("EQNEQ"),
 		OSPAR("'['"), CSPAR("']'"), HASH("'#'"),
 		BAR("'|'"), AND("'&&'"), OR("'||'"), EMARK("'!'"), COLON("':'"), 
@@ -413,15 +413,8 @@ public class Lex {
   			case ')': token = Token.CPAR; History.addChar(')');
   						ioh.nextChar(); break;
   			case '#': 	ioh.nextChar();
-						if ( ioh.currChar() == '=' ) {
-							token=Token.DUMMY;
-							History.addSubStr("#= ");
-							ioh.nextChar();
-						}
-						else {
-							token = Token.HASH; 
-							History.addChar('#');
-						}
+						token = Token.HASH; 
+						History.addChar('#');
 						break;
   			case '_': token = Token.UNDERSCORE; History.addChar('_');
 				ioh.nextChar(); break;
