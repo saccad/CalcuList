@@ -94,16 +94,27 @@ public class Debug {
     	else
     		return Integer.toString(X);
     }
-	
+
 	public static void printHeap() {
+		printHeap(Exec.MS-Exec.HP);
+	}
+
+	public static void printHeap( int nElem ) {
+	      int i=Exec.MS-1;
+	      if ( i == Exec.HP ) {
+	    	  System.out.println("EMPTY HEAP");
+		      System.out.println("======================");
+	    	  return;
+	      }
+	      if ( nElem == 0 ) {
+	    	  System.out.println("Skipping all heap elements");
+		      System.out.println("======================");
+	    	  return;	    	  
+	      }
 	      System.out.println("======================");
 	      System.out.print("++ HEAP");
-	      int i=Exec.MS-1;
-	      if ( i > Exec.HP )
-	    	  System.out.println(" (1^ Garbage Element *-> "+printPointer(Exec.GP)+
+	      System.out.println(" (1^ Garbage Element *-> "+printPointer(Exec.GP)+
 	    			  ", 1^ string *-> "+printPointer(Exec.FSPP)+")");
-	      else
-	    	  System.out.println();
 	      int nStAdd=Exec.FSPP;
 	      int iStr=0;
 	      int iListEl=0;
@@ -112,122 +123,128 @@ public class Debug {
 	      int iGarbEl = 0;
 	      int iDelEl = 0;
 	      int iDelField = 0;
+	      int iElem = 0;
 	      boolean isGarbageEl;
 		  System.out.print("---------------");
-	      while ( i > Exec.HP ) {
-		      isGarbageEl = false;
-	    	  if ( i==nStAdd || i==Exec.NSPP ) {
-	    		  boolean completeString = i!=Exec.NSPP;
-	    		  if ( completeString )
-	    			  System.out.println(" [String "+iStr+"]");
-	    		  else
-	    			  System.out.println(" [String "+iStr+"] - incomplete");
-	    		  int n=(int)Exec.MEM[i];
-		    	  System.out.format("%05d",i);
-		    	  System.out.print(": ");
-		    	  System.out.format("%-6d",n);
-	    		  System.out.println("\tlength");
-	    		  for ( int k =1; k<=n; k++) {
-	    			  i--;
+	      while ( i > Exec.HP && iElem <= nElem ) {
+	    	  if ( iElem == nElem ) 
+	    		  System.out.print("\n...skipping next heap elements...\n");
+	    	  else {
+			      isGarbageEl = false;
+		    	  if ( i==nStAdd || i==Exec.NSPP ) {
+		    		  boolean completeString = i!=Exec.NSPP;
+		    		  if ( completeString )
+		    			  System.out.println(" [String "+iStr+"]");
+		    		  else
+		    			  System.out.println(" [String "+iStr+"] - incomplete");
+		    		  int n=(int)Exec.MEM[i];
 			    	  System.out.format("%05d",i);
 			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-	    			  System.out.println("\t'"+(char)Exec.MEM[i]+"'");
-	    		  }
-	    		  i--;
-	    		  if ( completeString ) {
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-		    		  if ( Exec.MEM[i]==Exec.nullValue ) {
-		    			  System.out.println("\t* last string");
-		    			  nStAdd=Exec.nullValue; 
+			    	  System.out.format("%-6d",n);
+		    		  System.out.println("\tlength");
+		    		  for ( int k =1; k<=n; k++) {
+		    			  i--;
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+		    			  System.out.println("\t'"+(char)Exec.MEM[i]+"'");
 		    		  }
-		    		  else {
-		    			  System.out.println("\t*-> next string");
-		    			  nStAdd=(int)Exec.MEM[i];
-		    			  iStr++;
-		    		  }
-		    		  i--; 
-	    		  }
-	    	  }
-	    	  else 
-		    	  if ( Exec.MEM[i-2] < 0 ) { // field <value,key> (the link is negative)
-		    		  if ( Exec.MEM[i]==Exec.deletedNullValue && Exec.MEM[i-1]==Exec.NullT ) {
-		    			  System.out.println(" [Deleted Field-Value "+iDelField+"]");
-		    			  iDelField++;		    			  
-		    		  }
-		    		  else {
-		    			  System.out.println(" [Key-Value "+iFieldVal+"]");
-			        	  iFieldVal++;		    			  
-		    		  }
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-		    		  printValue(Exec.MEM[i], (int)Exec.MEM[i-1]);
 		    		  i--;
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-		        	  System.out.println("\t" +printType((int)Exec.MEM[i]));
-		    		  i--;
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",-(int)Exec.MEM[i]);
-	        		  System.out.println("\t*->HEAP (key string)");
-		        	  i--;
+		    		  if ( completeString ) {
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+			    		  if ( Exec.MEM[i]==Exec.nullValue ) {
+			    			  System.out.println("\t* last string");
+			    			  nStAdd=Exec.nullValue; 
+			    		  }
+			    		  else {
+			    			  System.out.println("\t*-> next string");
+			    			  nStAdd=(int)Exec.MEM[i];
+			    			  iStr++;
+			    		  }
+			    		  i--; 
+		    		  }
 		    	  }
-		    	  else {
-		    		  int type = (int)Exec.MEM[i-1];
-		    		  if ( type == Exec.FieldT ) {
-		    			  System.out.println(" [Json Element "+iJsonEl+"]");
-		    			  iJsonEl++;
-		    		  }
-		    		  else 
-		    			  if( type==Exec.NoType ) {
-			    			  System.out.println(" [Garbage Element "+iGarbEl+"]");
-			    			  iGarbEl++;
-			    			  isGarbageEl=true;
-		    			  }
-		    			  else
-		    				  if ( type==Exec.NullT && Exec.MEM[i] == Exec.deletedNullValue ) {
-				    			  System.out.println(" [Deleted List Element "+iDelEl+"]");
-				    			  iDelEl++;
-		    				  }
-			    			  else {
-			    				  System.out.println(" [List Element "+iListEl+"]");
-			    				  iListEl++;		    			  
+		    	  else 
+			    	  if ( Exec.MEM[i-2] < 0 ) { // field <value,key> (the link is negative)
+			    		  if ( Exec.MEM[i]==Exec.deletedNullValue && Exec.MEM[i-1]==Exec.NullT ) {
+			    			  System.out.println(" [Deleted Field-Value "+iDelField+"]");
+			    			  iDelField++;		    			  
+			    		  }
+			    		  else {
+			    			  System.out.println(" [Key-Value "+iFieldVal+"]");
+				        	  iFieldVal++;		    			  
+			    		  }
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+			    		  printValue(Exec.MEM[i], (int)Exec.MEM[i-1]);
+			    		  i--;
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+			        	  System.out.println("\t" +printType((int)Exec.MEM[i]));
+			    		  i--;
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",-(int)Exec.MEM[i]);
+		        		  System.out.println("\t*->HEAP (key string)");
+			        	  i--;
+			    	  }
+			    	  else {
+			    		  int type = (int)Exec.MEM[i-1];
+			    		  if ( type == Exec.FieldT ) {
+			    			  System.out.println(" [Json Element "+iJsonEl+"]");
+			    			  iJsonEl++;
+			    		  }
+			    		  else 
+			    			  if( type==Exec.NoType ) {
+				    			  System.out.println(" [Garbage Element "+iGarbEl+"]");
+				    			  iGarbEl++;
+				    			  isGarbageEl=true;
 			    			  }
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-		    		  printValue(Exec.MEM[i], type);
-		    		  i--;
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-		        	  System.out.println("\t" +printType(type));
-		        	  i--;
-			    	  System.out.format("%05d",i);
-			    	  System.out.print(": ");
-			    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-		        	  if ( type == Exec.FieldT ) {
-			        	  if ( Exec.MEM[i]==Exec.nullValue )
-			        		  System.out.println("\tend json");
-			        	  else
-			        		  System.out.println("\t*->next json element");
-		        	  }
-		    		  else 
-		    			  if ( isGarbageEl )
+			    			  else
+			    				  if ( type==Exec.NullT && Exec.MEM[i] == Exec.deletedNullValue ) {
+					    			  System.out.println(" [Deleted List Element "+iDelEl+"]");
+					    			  iDelEl++;
+			    				  }
+				    			  else {
+				    				  System.out.println(" [List Element "+iListEl+"]");
+				    				  iListEl++;		    			  
+				    			  }
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+			    		  printValue(Exec.MEM[i], type);
+			    		  i--;
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+			        	  System.out.println("\t" +printType(type));
+			        	  i--;
+				    	  System.out.format("%05d",i);
+				    	  System.out.print(": ");
+				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+			        	  if ( type == Exec.FieldT ) {
 				        	  if ( Exec.MEM[i]==Exec.nullValue )
-		    					  System.out.println("\tend garbage list");
+				        		  System.out.println("\tend json");
 				        	  else
-		    					  System.out.println("\t*->next garbage element");
-		    			  else		    				  
-				        	  if ( Exec.MEM[i]==Exec.nullValue )
-				        		  System.out.println("\tend list");
-				        	  else
-				        		  System.out.println("\t*->next list element");
-		        	  i--;
+				        		  System.out.println("\t*->next json element");
+			        	  }
+			    		  else 
+			    			  if ( isGarbageEl )
+					        	  if ( Exec.MEM[i]==Exec.nullValue )
+			    					  System.out.println("\tend garbage list");
+					        	  else
+			    					  System.out.println("\t*->next garbage element");
+			    			  else		    				  
+					        	  if ( Exec.MEM[i]==Exec.nullValue )
+					        		  System.out.println("\tend list");
+					        	  else
+					        		  System.out.println("\t*->next list element");
+			        	  i--;
+			    	  }
 		    	  }
+	    	  iElem++;
     		  System.out.print("---------------");
 	      }
 	      System.out.println();

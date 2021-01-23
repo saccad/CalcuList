@@ -255,10 +255,10 @@ public class Parser {
 	 static final int isReleaseService = 12;
 	 static final int isSaveService = 13;
 	 static final int isMemoryService = 14;
-	 static final int isMemorySizeService = 15;
-	 static final int isTailOptOnService = 16;
-	 static final int isTailOptOffService = 17;
-	 static final int isServiceList = 18;
+	 // static final int isMemorySizeService = 15;
+	 static final int isTailOptOnService = 15;
+	 static final int isTailOptOffService = 16;
+	 static final int isServiceList = 17;
 	 
 	 static int typeAbout; // associated to isAboutService - it will take one of the following values
 	 static final int isAboutBuiltIn = 0;
@@ -273,7 +273,9 @@ public class Parser {
 	 static String idAbout; // associated to isAboutLABEL,isAboutVAR, isAboutFUNCT
 
 	 static int numHistory; // associated to isHistoryNumService
-	 
+
+	 static int numMemoryService; // associated to isMemoryService
+
 	 static int nLocVars=0; // used within funcDef
 	 
 	 static boolean setLabel=false; // true if a label has been set as default for variables/functions
@@ -427,6 +429,7 @@ public class Parser {
 	 static void statement ( ) throws Exc {
 		 if ( lex.currToken() == Token.COLON ) {
 			 typeDef= isSetLab;
+			 History.startCommand(); 
 			 lex.printH_Colon(true); // print spaced COLON on history
 			 lex.nextToken();
 			 if ( lex.currToken() == Token.UNDERSCORE ) {
@@ -685,7 +688,7 @@ public class Parser {
 			 lex.nextToken();
 			 typeService=isServiceList;	
 			 if (lex.currToken()==Token.STAR) {
-				 typeServiceList=isSymbolTable;
+				 typeServiceList=isSymbolTable; // only internal
 				 lex.nextToken();
 			 }
 			 else
@@ -847,16 +850,13 @@ public class Parser {
 			 }
 			 if ( checkCommand(name,"memory")  ) {
 				 lex.nextToken();
-				 if ( lex.currToken() == Token.ID ) {
-					 if ( lex.IDName().equals("size")  )
-						 typeService=isMemorySizeService;
-					 else
-						 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.IDName()+
-									 " - expected: 'size' or no argument" );
+				 typeService=isMemoryService;
+				 if ( lex.currToken() == Token.INT ) {
+					 numMemoryService=lex.intVal();
 					 lex.nextToken();
 				 }
 				 else
-					 typeService=isMemoryService;
+					 numMemoryService=-1;
 				 return;
 			 }
 			 if( checkCommand(name,"import")  ) {
@@ -1568,6 +1568,7 @@ public class Parser {
 					 else 
 						 if ( lex.currToken() == Token.UNDERSCORE) {
 							 lex.nextToken();
+						 	 lex.printH_Assign(false); // print assign without spaces on history
 							 lex.accept(Token.ASSIGN);
 							 int retType=ifExpr(se);
 							 if ( retType >= Exec.FuncT )
@@ -2483,6 +2484,7 @@ public class Parser {
 				 if ( lex.currToken()==Token.CPAR )
 					 operand=0;
 				 else {
+	 				 lex.printH_Comma(false); // no space after comma in history
 					 lex.accept(Token.COMMA);
 					 ifExpr_t = ifExpr(se);
 					 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
@@ -2500,6 +2502,7 @@ public class Parser {
 						 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
 									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
 											Exec.types[ifExpr_t]+"- expected type: string");
+		 				 lex.printH_Comma(false); // no space after comma in history
 						 lex.accept(Token.COMMA);
 						 ifExpr_t = ifExpr(se);
 						 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
@@ -3079,8 +3082,8 @@ public class Parser {
 			 					 if ( typeAbout == isAboutVAR) OutputH.printOneVar(idAbout);
 		 						break;
 		 	case isSaveService: ioh.saveFile(); break;
-		 	case isMemoryService: OutputH.printMemory(); break;
-		 	case isMemorySizeService: OutputH.printSize(); break;
+		 	case isMemoryService: OutputH.printMemory(numMemoryService); break;
+	//	 	case isMemorySizeService: OutputH.printSize(); break;
 		 	case isImportEchoService: ioh.importFile(true); break;
 		 	case isImportNoEchoService: ioh.importFile(false); break;
 		 	case isClops: ioh.print(Integer.toString(Exec.nExecMicroInstrs())+"\n"); break;

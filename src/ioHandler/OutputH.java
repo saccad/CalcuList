@@ -22,8 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package ioHandler;
 
-import java.util.regex.*;
-
 import error.Exc;
 import sem.SymbH;
 import sem.SymbolTableH;
@@ -39,7 +37,7 @@ public class OutputH {
 	  static private String release = "4.3.1";
 	  static private String releaseDate = "December 24, 2020";
 	  
-	  static String labelP = "[a-zA-Z]\\w*\\u002E.*";
+//	  static String labelP = "[a-zA-Z]\\w*\\u002E.*";
 
 	  
 	  static void printStart() {
@@ -62,7 +60,7 @@ public class OutputH {
 		  System.out.println("Release "+release+" of "+releaseDate);
 	  }
 
-		public static void printMemory () {
+		public static void printMemory ( int k ) {
 			  printSize();
 		      //System.out.println("======================");
 		      System.out.println("++ STACK");
@@ -83,7 +81,10 @@ public class OutputH {
 		      }
 		      System.out.println();
 		      System.out.println("======================");
-		      Debug.printHeap();
+		      if ( k==-1 )
+		    	  Debug.printHeap();
+		      else
+		    	  Debug.printHeap(k);
 		}
 
 		public static void printSize () {
@@ -180,11 +181,8 @@ public class OutputH {
 					else
 					{
 						System.out.print(iLabel+": (F"+(iVarFunct)+") ");
-						String source = SymbolTableH.finfo_source(i);
-						if ( Pattern.matches(labelP,source) )
-							System.out.print("\t"+source.substring(nL+1));
-						else
-							System.out.print("\t"+source);							
+						System.out.print("\t"+SymbolTableH.idSymb(i).substring(nL+1));
+						functDescr(i);
 						System.out.println("");						
 					}
 					iLabel++;
@@ -220,6 +218,7 @@ public class OutputH {
 			System.out.println("Built-in: _rand ( )");
 			System.out.println("Built-in: _tuple ( P1 )");
 			System.out.println("Built-in: _gDate ( )");
+			System.out.println("Built-in: _gDate ( P1, P2 )");
 			System.out.println("Built-in: _pDate ( P1 )");
 			System.out.println("Built-in: _pDate ( P1, P2 )");
 			char UorF ='U';
@@ -230,25 +229,29 @@ public class OutputH {
 						UorF='F';
 					System.out.print("("+UorF+(SymbolTableH.iVarFunc(i)+1)+") ");
 					System.out.print(SymbolTableH.idSymb(i));
-					if ( SymbH.hasSideEffect(i) )
-						System.out.print('*');
-					System.out.print(" ( ");
-					for (int j =0; j<SymbH.nPar(i); j++ ) {
-						if ( j > 0 )
-							System.out.print(", ");
-						if (SymbolTableH.finfo_typePar(i,j) == SymbH.functType ) {
-							System.out.print("P"+(j+1));
-							System.out.print("/"+SymbolTableH.finfo_functParNP(i,j));
-						}
-						else 
-							System.out.print("P"+(j+1));
-					}
-					System.out.print(" ) ");
-					if (SymbolTableH.finfo_retType(i) == SymbH.functType )
-						System.out.print("/"+SymbolTableH.finfo_retArity(i));
+					functDescr(i);
 					System.out.println("");			
 				}
 			System.out.print("---End of FUNCTIONS---\n \n");							
+		}
+		
+		static void functDescr( int i ) {
+			if ( SymbH.hasSideEffect(i) )
+				System.out.print('*');
+			System.out.print(" ( ");
+			for (int j =0; j<SymbH.nPar(i); j++ ) {
+				if ( j > 0 )
+					System.out.print(", ");
+				if (SymbolTableH.finfo_typePar(i,j) == SymbH.functType ) {
+					System.out.print("P"+(j+1));
+					System.out.print("/"+SymbolTableH.finfo_functParNP(i,j));
+				}
+				else 
+					System.out.print("P"+(j+1));
+			}
+			System.out.print(" ) ");
+			if (SymbolTableH.finfo_retType(i) == SymbH.functType )
+				System.out.print("/"+SymbolTableH.finfo_retArity(i));
 		}
 		
 		public static void printHist ( int iH, boolean index  ) {
@@ -353,6 +356,9 @@ public class OutputH {
 				System.out.print("(U"+(iFunct+1)+") ");
 			else
 				System.out.print("(F"+(iFunct+1)+") ");
+			System.out.print(SymbolTableH.idSymb(i));
+			functDescr(i);
+			System.out.println("");	
 			System.out.println(SymbolTableH.finfo_source(i));
 			if ( SymbolTableH.finfo_comment(i) != null )
 				System.out.println("/*"+SymbolTableH.finfo_comment(i)+"*/");
@@ -401,33 +407,36 @@ public class OutputH {
 			}
 			else {
 				System.out.println("\n------LIST OF SERVICE COMMANDS------");
-				System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
-				System.out.println(" - !functions: lists all function names and their arguments");
-				System.out.println(" - !labels: lists all labels that have been defined in the current session");
 				System.out.println(" - !about ID: describes some info on the variable, function or label with name ID");
+				System.out.println(" - !clops: displays the number of clops (micro-instructions of CalcuList Machine) for the last query or variable definition");
+				System.out.println(" - !debug on/off: debug will be enabled or disabled\n"+
+						"               -  by default the debug is disabled");
+				System.out.println(" - !exec k: executes the statement with index p in the history, where \n"+
+						"               -  p = k if k > 0\n" +
+						"               -  p = n+k if k < 0\n" +
+						"               -  p = n if k = 0 or k is missing");			
+				System.out.println(" - !functions: lists all function names and their arguments");
 				System.out.println(" - !history k: lists all statements (definitions and queries) of the session, ordered from 1 to n, corresponding to the last command\n"+
 						"               -  if k > 0, lists the statements from k to n\n" +
 						"               -  if k < 0, lists the statements from n-k to n\n" +
 						"               -  if k = 0, lists the last statement only\n" +
 						"               -  if k is missing, lists all statements");			
-				System.out.println(" - !exec k: executes the statement with index p, where \n"+
-						"               -  p = k if k > 0\n" +
-						"               -  p = n-k if k < 0\n" +
-						"               -  p = n if k = 0 or k is missing");			
-				System.out.println(" - !import echo/n0echo: imports the statements stored into a file \n"+
+				System.out.println(" - !import echo/noecho: imports the statements stored into a file \n"+
 						"               -  the name of the file is to be given after the prompt\n"+
 						"               -  option 'echo':  the imported statements are displayed on the screen\n"+
 						"               -  option 'noecho':  no display\n"+
 						"               -  no option:  the option 'echo' is assumed");
+				System.out.println(" - !labels: lists all labels that have been defined in the current session");
+				System.out.println(" - !memory k: displays the internal memory, i.e., the global variables in the stack and dynamic structures in the heap\n"+
+				"               -  if k > 0, lists the firts k elements in the heap\n" +
+				"               -  if k = 0, no heap element is listed\n" +
+				"               -  if k is missing, lists all elements in the heap");			
+				System.out.println(" - !release: displays details on the current CalcuList release");
 				System.out.println(" - !save: all session statements are saved into a text file \n"+
 						"               -  the name of the file is to be given after the prompt");
-				System.out.println(" - !clops: displays the number of clops (micro-instructions of CalcuList Machine) for the last query or variable definition");
-				System.out.println(" - !release: displays details on the current CalcuList release");
-				System.out.println(" - !memory: displays the internal memory, i.e., the global variables in the stack and dynamic structures in the heap");
 				System.out.println(" - !tailOpt on/off: optimization of tail recursion implementation will be enabled or disabled\n"+
 						"               -  by default the optimization is enabled");
-				System.out.println(" - !debug on/off: debug will be enabled or disabled\n"+
-						"               -  by default the debug is disabled");
+				System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
 				System.out.println(" * each of the above commands can be abbreviated by any non-empty prefix of it");
 				System.out.print("---End of LIST OF SERVICE COMMANDS---\n \n");
 			}
