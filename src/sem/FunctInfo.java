@@ -1,5 +1,5 @@
 /**********************************************************************
-CalcuList (Calculator with List manipulation) is an educational 
+	CalcuList (Calculator with List manipulation) is an educational 
 language for teaching functional programming extended with some 
 imperative and side-effect features, which are enabled under explicit 
 request by the programmer.
@@ -34,13 +34,13 @@ public class FunctInfo {
 	static ArrayList<String> currUsedLabels = new ArrayList<String>(labelsInitCapacity);
 	String source;
 	String comment;
-	boolean hasSideEffect;
-	boolean hasFunctParams;
+	public boolean hasSideEffect;
+	public boolean hasFunctParams;
 	CodeUnit code;
-	ArrayList<Integer> pTs; // parameters types (varType, functType)
-	ArrayList<Integer> pFn; // arity for function parameters
-	int retT; // return value type (varType, functType)
-	int retFn; // arity for return functType
+	public ArrayList<Integer> pTs; // parameters types (varType, functType)
+	public ArrayList<Integer> pFn; // arity for function parameters
+	public int retT; // return value type (varType, functType)
+	public int retFn; // arity for return functType
 
 	static int searchCurrParId ( String idN ){
 		return currParmsIds.indexOf(idN);

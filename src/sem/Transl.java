@@ -111,9 +111,9 @@ public class Transl {
 		return unitCode;
 	}
 	
-	public static CodeUnit nullBodyFunct (String fName, int arity) throws Exc {
+	public static CodeUnit nullBodyFunct (String fName, int fCode, int arity) throws Exc {
 		nullUnitCode=new CodeUnit();
-		nullUnitCode.ins(Operator.START,0,"* "+fName);
+		nullUnitCode.ins(Operator.START,fCode,"* "+fName);
 		nullUnitCode.ins(Operator.PUSHN,0);
 		nullUnitCode.ins(Operator.RETURN,arity);
 		return nullUnitCode;

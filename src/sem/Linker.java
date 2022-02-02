@@ -64,8 +64,9 @@ public class Linker {
 				throw new Exc_Sem(ErrorType.LARGE_CODE, " Internal: increase the size of CODE in Exec > "
 						+Exec.getCS() + " for Argument EXECCS");
 			Instruction uc_i= uc.code.get(i);
-			if ( uc_i.getOperator() == Operator.CALL || 
+			if (    uc_i.getOperator() == Operator.CALL || 
 					uc_i.getOperator() == Operator.PUSHF ) 
+//					(uc_i.getOperator() == Operator.PUSHF && uc.code.get(i+1).getOperator()!=Operator.FUNCF) ) 
 				modCall(uc_i, uc_i.getOperator()); 
 			else
 				if ( uc_i.getOperator() == Operator.START ||

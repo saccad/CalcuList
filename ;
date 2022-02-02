@@ -1,1 +1,10 @@
-/* CalcuList Session of Tue Nov 17 16:08:26 CET 2020 */
+/* CalcuList Session of Fri Jan 14 12:49:16 CET 2022 */
+s(x) -> x+1;
+g(x) -> x*2;
+sg(f1/1, f2/1, x)/1 -> x==1? f1: f2;
+tw(f/1, x)/1 -> \(y) -> f(f(y))+x;
+^ s;
+^ g;
+f()/1 -> \(x) -> x+1;
+^ f;
+^ tw(g,4);

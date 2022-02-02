@@ -52,7 +52,7 @@ public class LexAssembler {
 				return null;
 			state= 0;
 			boolean terminate = false;
-			while ( iLine < nLine && !terminate ) 
+			while ( iLine <= nLine && !terminate ) 
 				switch (state) {
 					case 0:	
 						state0 (); break; 
@@ -85,7 +85,6 @@ public class LexAssembler {
 				case 11:
 					return new AsmBeginEnd(beginEnd);
 				default:
-					System.out.println("\nstate="+state);
 					throw new Exc_Assembler(ErrorType.WRONG_INSTRUCTION, "incomplete instruction");					
 			}
 		}
@@ -188,7 +187,7 @@ public class LexAssembler {
 	/**
 	 * start the recognition of the operand
 	 */
-	static void state5 ( ArrayList<LabelInstr> calledLabels, int instrInd ) throws Exc {
+	static void state5 ( ArrayList<LabelInstr> calledLabels, int instrInd ) throws Exc {		
 		if ( Character.isWhitespace(line.charAt(iLine)) )
 			iLine++;
 		else {

@@ -29,12 +29,13 @@ import java.util.ArrayList;
 public class LambdaFunctInfo {
 	static final int paramsInitCapacity = 20;
 	
-	boolean useFunctParms;
-	int nFunctParms; // number of parameters of the hosting function
+	public boolean useFunctParms;
+	public int nFunctParms; // number of parameters of the hosting function
 	ArrayList<String> currParmsIds; // possible function parameters + lambda parameters
-	ArrayList<Integer> fParmsTs; // function parameters types (varType, functType)
+	ArrayList<Integer> fParmsTs; // function parameters types (0=varType, 1=functType)
 	ArrayList<Integer> fParmsFn; // arity for function parameters
 	CodeUnit code;
+	String source;
 	
 	int nP() {
 		return currParmsIds.size()-nFunctParms;
@@ -55,6 +56,18 @@ public class LambdaFunctInfo {
 	int arityFunctPar ( int i ) {
 		return fParmsFn.get(i);
 	}	
+	
+	public String parmID( int i ) {
+		return currParmsIds.get(i);
+	}
+
+	public int parmArity( int i ) {
+		return fParmsFn.get(i);
+	}
+
+	public String source() {
+		return source;
+	}
 
 	LambdaFunctInfo ( ) {
 		currParmsIds= new ArrayList<String>(paramsInitCapacity);
@@ -83,6 +96,7 @@ public class LambdaFunctInfo {
 	
 	LambdaFunctInfo ( LambdaFunctInfo fi ) {
 		code = fi.code; 
+		source = fi.source;
 		currParmsIds=new ArrayList<String>(fi.currParmsIds);
 		fParmsTs= fi.fParmsTs==null? null: new ArrayList<Integer>(fi.fParmsTs);
 		fParmsFn= fi.fParmsTs==null? null: new ArrayList<Integer>(fi.fParmsFn);

@@ -52,7 +52,7 @@ public class Exec {
 	
 	static  Scanner reader = new Scanner(System.in);
 
-	static private Instruction IR;
+	static private Instruction IR, IRF;
 	static final int nullValue = 0; // it must be equal to the value of null
 	static final int deletedNullValue = -1; // used to mark a deleted list element (<-1, NullT>) or json element (<-1,FielddT>)
 	static int 	nClops; // number of instructions executed by the current exec
@@ -82,6 +82,7 @@ public class Exec {
 	static int WRI2; 		// a second internal integer register for computations
 	static int WRI3; 		// a third internal integer register for computations
 	static int WRI4; 		// a fourth internal integer register reserved for deleting json/list elements
+	static int WRIL; 		// an integer register pointing to the start of a built lambda code
 	static long WRL1; 	// an internal long register for computations
 	static long WRL2; 	// a second long integer register for computations
 	static String WRS1; 	// a string register for computations (a bit unrealistic)
@@ -1212,7 +1213,9 @@ public class Exec {
 		if (CODEN + 2*WRI1 +4 >= CS) // 4 clops
 			throw new Exc_Exec(ErrorType.LARGE_CODE, " Internal: increase the size of CODE in Exec > "
 					+CODEN + " for Argument EXECCS");
-		CODE[CODEN]=new Instruction(Operator.START,0,"* Run Time Function calling Lambda -> "+(int)MEM[SP-1]); // 2 clops
+    	IRF=CODE[(int) WRD1]; // 1 clop
+     	WRI4= (int) IRF.getOperand(); // 1 clop		        	
+		CODE[CODEN]=new Instruction(Operator.START,WRI4,"* Run Time Function calling Lambda -> "+(int)MEM[SP-1]); // 2 clops
 		CODEN++; // 1 clop
 		WRI4 = FP-2*WRI1; // 2 clops
 		nClops += 8; // including last while check
@@ -1324,11 +1327,18 @@ public class Exec {
 		        	SP++; // 1 clop
 			        MEM[SP] = FP; // 1 clop
 			        FP = SP-1; // 1 clop 
-			        SP+=(int) IR.getOperand()*2; // 3 clops
 		        	if (SP >= HP ) // 1 clops
 		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"START "+ov_MEM);
 			        if ( debugAct )  Debug.addFrame(FP);
-					nClops +=7;
+					nClops +=4;
+		        	break;
+
+		        case ALLOC: // allocate space for local variables 
+        			// by setting up its frame and adding the link to the previous pointer 
+			        SP+=(int) IR.getOperand()*2; // 3 clops
+		        	if (SP >= HP ) // 1 clops
+		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"START "+ov_MEM);
+					nClops +=4;
 		        	break;
 
 		        case RETURN: // end the execution of the current function 
@@ -1665,7 +1675,8 @@ public class Exec {
 		        	break;
 		
 		        case MODV: // modify a referenced value in the stack
-		        	if ( MEM[SP] < DoubleT || MEM[SP] > RefT  ) // 2 clops
+		        	if ( MEM[SP] < DoubleT || MEM[SP] > RefT ) // 2 clops
+//			        	if ( MEM[SP] < DoubleT || MEM[SP] > FuncT || MEM[SP] == FieldT ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.MODV_NOT_SUPPORTED," - found type '"+typeName((int)MEM[SP-4])+"'");
 		        	SP--; SP--;// 2 clops
 		        	if ( MEM[SP] != RefT ) // 2 clops
@@ -2026,7 +2037,7 @@ public class Exec {
 			        	if ( MEM[SP]==LongT ) { // 2 clops
 			        		WRL1 = Double.doubleToRawLongBits(MEM[WRI1]); // 1 clop
 				        	if ( WRL1<minInt || WRL1 >maxInt ) // 2 clops
-				        		throw new Exc_Exec(ErrorType.TOINT_NOT_SUPPORTED," for value "+WRL1);
+				        		throw new Exc_Exec(ErrorType.TOINT_NOT_SUPPORTED," for value "+WRL1+"L");
 				        	MEM[WRI1] = (int) WRL1;// 1 clop
 				        	nClops+=4;
 			        	}
@@ -3085,104 +3096,112 @@ public class Exec {
 		        	break;
 		        	
 		        case EXECF:
-		        		execF(debugAct,IPC);
-		        	break;
+		        	execF(debugAct,IPC);
+		        break;
 		        	
+		        case FUNCF: 
+		        	WRIL=(int) MEM[SP-1]; // 2 clops
+		        	IRF=CODE[WRIL]; // 1 clop
+		        	WRI1= (int) IRF.getOperand(); // 1 clop		        	
+	        		MEM[SP-1]=WRI1; // 2 clops
+	        		nClops+=6; 
+	        	break;
+	        	
 			    case PRINT: 
 		    		WRI3 = (int) IR.getOperand(); // 1 clop
 		    		WRI1 = (int) MEM[SP]; // 1 clop
 		    		SP--; // 1 clop
     	        		nClops +=4; // including next check
-    	        		if ( WRI1 >= DoubleT && WRI1 <= MetaTypeT ) { // 1 clop
-				    if (OP+1 > OS ) // 1 clop
-			        		throw new Exc_Exec(ErrorType.OUTPUT_OVERFLOW, "Internal: increase the output size > "
+    	        		if ( WRI1 >= DoubleT && (WRI1 <= MetaTypeT || WRI1==FuncT) ) { // 1 clop
+    	        			if (OP+1 > OS ) // 1 clop
+    	        				throw new Exc_Exec(ErrorType.OUTPUT_OVERFLOW, "Internal: increase the output size > "
 									+OS + " for Argument EXECOS");
-			        	OUTPUT[OP]= MEM[SP]; // 2 clops 
-	    	        		SP--; // 1 clop
-			        	OP++; // 1 clops 
-			        	nClops+=6; // including next check
-			        	if ( WRI3 == 1 ) { // 1 clop
-			        		nClops++; // next check
-			        		if ( WRI1==StringT ) { // 1 clop
-			        			OUTPUT[OP]= StringQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-			        		}
-		        			nClops++; // next check
-		        			if ( WRI1==CharT) { // 1 clop
-		        				OUTPUT[OP]= CharQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-		        			nClops++; // next check
-		        			if ( WRI1==NullT ) { // 1 clop
-		        				OUTPUT[OP]= NullQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-			        	}
-			        	nClops += 2; // next check
-			        	if ( WRI3 == 3 ) { // 1 clop
-			        		nClops++; // next check
-			        		if ( WRI1==StringT ) { // 1 clop
-			        			OUTPUT[OP]= StringQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-			        		}
-		        			nClops++; // next check
-		        			if ( WRI1==CharT) { // 1 clop
-		        				OUTPUT[OP]= CharQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-		        			nClops++; // next check
-		        			if ( WRI1==NullT ) { // 1 clop
-		        				OUTPUT[OP]= NullQF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-		        			nClops++; // next check
-		        			if ( WRI1==JsonT ) { // 1 clop
-		        				OUTPUT[OP]= JsonIndentAllF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-		        			nClops++; // next check
-		        			if ( WRI1==ListT ) { // 1 clop
-		        				OUTPUT[OP]= ListIndentAllF; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-			        	}
-			        	nClops += 2; // next check
-		        		if ( WRI3 == 2 ) { // 2 clops
-		        			nClops++; // next check
-		        			if ( WRI1==JsonT ) { // 1 clop
-		        				OUTPUT[OP]= JsonIndent1F; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-		        			nClops++; // next check
-		        			if ( WRI1==ListT ) { // 1 clop
-		        				OUTPUT[OP]= ListIndent1F; // 1 clop
-					        	OP++; // 1 clop
-			        			nClops+=2;
-			        			break;
-		        			}
-			        	}
-			        	OUTPUT[OP]= WRI1; // 1 clop
-			        	OP++; // 1 clop
-			        	nClops+=2;
-    	        	}
+				        	OUTPUT[OP]= MEM[SP]; // 2 clops 
+		    	        		SP--; // 1 clop
+				        	OP++; // 1 clops 
+				        	nClops+=6; // including next check
+				        	if ( WRI3 == 1 ) { // 1 clop
+				        		nClops++; // next check
+				        		if ( WRI1==StringT ) { // 1 clop
+				        			OUTPUT[OP]= StringQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+				        		}
+			        			nClops++; // next check
+			        			if ( WRI1==CharT) { // 1 clop
+			        				OUTPUT[OP]= CharQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+			        			nClops++; // next check
+			        			if ( WRI1==NullT ) { // 1 clop
+			        				OUTPUT[OP]= NullQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+				        	}
+				        	nClops += 2; // next check
+				        	if ( WRI3 == 3 ) { // 1 clop
+				        		nClops++; // next check
+				        		if ( WRI1==StringT ) { // 1 clop
+				        			OUTPUT[OP]= StringQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+				        		}
+			        			nClops++; // next check
+			        			if ( WRI1==CharT) { // 1 clop
+			        				OUTPUT[OP]= CharQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+			        			nClops++; // next check
+			        			if ( WRI1==NullT ) { // 1 clop
+			        				OUTPUT[OP]= NullQF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+			        			nClops++; // next check
+			        			if ( WRI1==JsonT ) { // 1 clop
+			        				OUTPUT[OP]= JsonIndentAllF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+			        			nClops++; // next check
+			        			if ( WRI1==ListT ) { // 1 clop
+			        				OUTPUT[OP]= ListIndentAllF; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+				        	}
+				        	nClops += 2; // next check
+			        		if ( WRI3 == 2 ) { // 2 clops
+			        			nClops++; // next check
+			        			if ( WRI1==JsonT ) { // 1 clop
+			        				OUTPUT[OP]= JsonIndent1F; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+			        			nClops++; // next check
+			        			if ( WRI1==ListT ) { // 1 clop
+			        				OUTPUT[OP]= ListIndent1F; // 1 clop
+						        	OP++; // 1 clop
+				        			nClops+=2;
+				        			break;
+			        			}
+				        	}
+				        	OUTPUT[OP]= WRI1; // 1 clop
+				        	OP++; // 1 clop
+				        	nClops+=2;
+	    	        	}
     	        	else 
 			        		throw new Exc_Exec(ErrorType.PRINT_NOT_SUPPORTED, " for type '"+typeName((int)MEM[WRI1])+"'");
 		        	break;

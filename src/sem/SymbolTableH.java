@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package sem;
 
 import error.Exc;
-import sem.FunctInfo;
 import java.util.ArrayList;
 
 
@@ -43,7 +42,7 @@ public class SymbolTableH {
 	static int nFunctTmp; // including on-going defined labeled functions
 	static int nSymbTmp;
 	public static ArrayList<Symbol> symbols = new ArrayList<Symbol>(symbolsInitCapacity);
-	static ArrayList<LambdaFunctInfo> lambdaFuncts = new ArrayList<LambdaFunctInfo>(lambdaFunctsInitCapacity);
+	public static ArrayList<LambdaFunctInfo> lambdaFuncts = new ArrayList<LambdaFunctInfo>(lambdaFunctsInitCapacity);
 	static ArrayList<String> labels= new ArrayList<String>(labelsInitCapacity); // labels
 	static ArrayList<String> labComments= new ArrayList<String>(labelsInitCapacity); // labels
 	static ArrayList<String> currLabVarFuncts= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
@@ -58,7 +57,11 @@ public class SymbolTableH {
 	static void commitLambdaFuncts () {
 		nCommLambdaFuncts = nLambdaFuncts;
 	}
-	
+
+	public static int nLambdaFuncts () {
+		return nCommLambdaFuncts;
+	}
+
 	static void startLambdaFuncts () {
 		nLambdaFuncts = nCommLambdaFuncts;
 	}
@@ -83,7 +86,7 @@ public class SymbolTableH {
 		symbols.add(nSymbTmp, new Symbol(idN,true,label,SymbH.functType));
 		symbols.get(nSymbTmp).iVarFunc= nFunctTmp;
 		symbols.get(nSymbTmp).finfo = new FunctInfo(se); 
-		symbols.get(nSymbTmp).finfo.code = Transl.nullBodyFunct (idN_full, arity); 
+		symbols.get(nSymbTmp).finfo.code = Transl.nullBodyFunct (idN_full, nFunctTmp,arity); 
 		String source = idN_full+"("; 
 		for (int i=0; i<arity; i++) {
 			symbols.get(nSymbTmp).finfo.addVarParam("_");
@@ -106,7 +109,7 @@ public class SymbolTableH {
 		for ( int i=0; i<nPrevLabFuncts; i++ ) {
 			int k= currPrevLabFuncts.get(i);
 			symbols.get(k).finfo.code = 
-					Transl.nullBodyFunct (currPrevLabFunctNames.get(i), currPrevLabFunctArities.get(i)); 
+					Transl.nullBodyFunct (currPrevLabFunctNames.get(i), currPrevLabFuncts.get(i),currPrevLabFunctArities.get(i)); 
 			String source = currPrevLabFunctNames.get(i)+"("; 
 			int n= symbols.get(k).finfo.nP();
 			for (int j=0; j<n; j++) {
@@ -170,6 +173,10 @@ public class SymbolTableH {
 		return symbols.get(i).finfo.functSource();
 	}
 	
+	public static String lambda_source ( int i ) {
+		return lambdaFuncts.get(i).source;
+	}
+	
 	public static String finfo_comment ( int i ) {
 		return symbols.get(i).finfo.comment;
 	}
@@ -226,6 +233,8 @@ public class SymbolTableH {
 
 	static void addLambdaFunc ( LambdaFunctInfo f ) throws Exc {
 		lambdaFuncts.add(nLambdaFuncts, new LambdaFunctInfo(f));
+//		System.out.println("i="+nLambdaFuncts);
+//		System.out.println(lambdaFuncts.get(nLambdaFuncts).source);
 		nLambdaFuncts++;
 		
 	}
@@ -259,7 +268,7 @@ public class SymbolTableH {
 		return nLabels;
 	}
 
-	static int searchF ( int iF ){
+	public static int searchF ( int iF ){
 		for ( int i = 0; i < nSymb; i++ )
 			if ( symbols.get(i).tSymb == SymbH.functType &&  symbols.get(i).iVarFunc==iF)
 				return i;

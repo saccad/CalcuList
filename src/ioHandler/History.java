@@ -56,8 +56,14 @@ public class History {
 		if ( histOn )
 			currComm += c;
 	}
+	public static int nCurrComm( ) {
+			return currComm.length();
+	}
 	public static int nCommand() {
 		return hist.size();
+	}
+	public static String currCommand( ){
+		return currComm;
 	}
 	public static String command( int i ){
 		return hist.get(i);

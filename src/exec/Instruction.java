@@ -42,7 +42,7 @@ public class Instruction {
 	}
 	public enum Operator {
 		INIT(OperandType.POP), HALT(OperandType.NOP), 
-		START(OperandType.POP), 
+		START(OperandType.IOP), ALLOC(OperandType.POP),
 		RETURN(OperandType.POP),
 		CALL(OperandType.POP), CALLS(OperandType.NOP),
 		THROWE(OperandType.NOP), BUILDS(OperandType.POP),
@@ -75,7 +75,6 @@ public class Instruction {
 	    SLIST(OperandType.NOP), HLIST(OperandType.NOP), CLIST(OperandType.NOP), 
 	    ELIST(OperandType.NOP),ALIST(OperandType.NOP), 
 	    HEAD(OperandType.NOP), TAIL(OperandType.NOP), 
-	    //SUBTAIL(OperandType.NOP),
 	    LISTEL(OperandType.NOP), MODVEL(OperandType.NOP),
 	    LCLONE(OperandType.POP),
 	    SSTRING(OperandType.NOP), CSTRING(OperandType.NOP), ESTRING(OperandType.NOP), 
@@ -88,6 +87,7 @@ public class Instruction {
 	    LJEL (OperandType.NOP), LSJCLONE(OperandType.NOP), LSJELV(OperandType.NOP), 
 	    LSELV(OperandType.NOP), LSCLONE(OperandType.POP), 
 	    EXECF(OperandType.NOP), 
+	    FUNCF(OperandType.NOP),
 	    PRINT(OperandType.POP); 
 		final OperandType operandType; 
 		Operator(OperandType operandType) {

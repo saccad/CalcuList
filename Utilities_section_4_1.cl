@@ -1,6 +1,9 @@
 /***** UTILITIES *****/
 
 /**** some maths ****/
+UMATH: min/2, max/2, log/2, sqrt/1, divisible/2, GCD/2, LCM/2, abs/1, 
+      floor_1/2, floor/1, ceil_1/2, ceil/1, round/1;
+: UMATH;
 min(x,y) -> /* minimum of two comparable (number, bool, string) elements */ 
 x < y ? x: y; 
 
@@ -26,28 +29,33 @@ abs(x) -> /* absolute value of a number x */
 x < 0? -x: x; 
 
 /* integer floor of a double */
-floor_1(x,n) ->  /* called by floor(x), not to be used stand-alone */ 
-x==n || x>0 ? n:  n-1;
 floor(x) -> /* integer floor of a double */
 floor_1(x,x@int) ; 
+floor_1(x,n) ->  /* called by floor(x), not to be used stand-alone */ 
+x==n || x>0 ? n:  n-1;
 
 /* integer ceil of a double */
-ceil_1(x,n) ->  /* called by ceil(x), not to be used stand-alone */ 
-x==n || x<0 ? n:  n+1;
 ceil(x) -> /* integer ceil of a double */
 ceil_1(x,x@int); 
+ceil_1(x,n) ->  /* called by ceil(x), not to be used stand-alone */ 
+x==n || x<0 ? n:  n+1;
 
 round(x) -> /* round of x to the closest integer */
-abs(x-x@int) < 0.5? floor(x): ceil(x); 
+abs(x-x@int) < 0.5? floor(x): ceil(x);
+:#; 
+
 
 /**** operations on characters ****/
+UCHAR: isSpace/1, isWhiteSpace/1, digitVal/1, isDigit/1, isLetter/1, isLetterOrDigit/1,
+      isUpperCase/1, isLowerCase/1, toUpperCase/1, toLowerCase/1;
+:UCHAR;
 isSpace(c) -> /* returns true if c is space */
 c == ' ';
 
 isWhiteSpace(x) -> /* returns true if x is a white space */
 x==' ' || x=='\t' || x=='\n' || x=='\f' || x=='\r';
 
-digitVal(x) -> /* returns the value (from 0 to 9) of a decimal char */
+digitVal(x) -> /* returns the value (from 0 to 9) of the decimal x */
 x-'0';
 
 isDigit(x) -> /* returns true if x is a decimal char */
@@ -70,9 +78,12 @@ isLowerCase(x)? (x-'a'+'A')@char: x;
 
 toLowerCase(x) -> /* change case to an upper case letter */
 isUpperCase(x)? (x-'A'+'a')@char: x;
+:#;
 
 /*** basic list operations ****/
-
+ULIST: range/2, randL/3, randLI/3, member/2, append/2,equalL/2, compareL/2,
+       maxL1/2, maxL/1, minL1/2, minL/1, reverse_1/2, reverse/1;
+:ULIST;
 range(x1,x2) -> /* construct a list of all integers in the range <x1, x2> */
 x1 > x2? []: [x1|range(x1+1,x2)];
 
@@ -80,7 +91,7 @@ randL(minv, maxv, k) -> /* generate a list of k random doubles in the range <min
 k<=0? []: [_rand()*(maxv-minv)+minv|randL(minv, maxv, k-1)];
 
 randLI(minv, maxv, k) -> /* generate a list of k random integers in the range <minv, maxv> */
-k<=0? []: [round(_rand()*(maxv-minv)+minv)|randLI(minv, maxv, k-1)];
+k<=0? []: [UMATH.round(_rand()*(maxv-minv)+minv)|randLI(minv, maxv, k-1)];
 
 /* list membership test */
 member(X,L) -> /* returns true if X is an element X of the list L */
@@ -101,21 +112,21 @@ L1==[] && L2==[]? 0: L1==[]? -1: L2==[]? 1: L1[.]<L2[.]? -1: L1[.]>L2[.]? 1: com
 
 
 /* maximum of a list */
-maxL1(L,m) -> /* called by maxL – not to be used stand-alone */
-L[>]==[]? max(m,L[.]): maxL1(L[>],max(m,L[.]));
 maxL(L) -> /* it computes the maximum of a list */
 L==[]? null: maxL1(L[>],L[.]);
+maxL1(L,m) -> /* called by maxL – not to be used stand-alone */
+L[>]==[]? UMATH.max(m,L[.]): maxL1(L[>],UMATH.max(m,L[.]));
 
 /* minimum of a list */
-minL1(L,m) -> /* called by minL – not to be used stand-alone */
-L[>]==[]? min(m,L[.]): minL1(L[>],min(m,L[.]));
 minL(L) -> /* it computes the minimum of a list */
 L==[]? null: minL1(L[>],L[.]);
+minL1(L,m) -> /* called by minL – not to be used stand-alone */
+L[>]==[]? UMATH.min(m,L[.]): minL1(L[>],UMATH.min(m,L[.]));
 
 /* reverse of a list */
-reverse_1(L, M) -> /* called by reverse(L), not be used otherwise */
-L==[]? M: reverse_1(L[>],[L[.]|M]); 
 reverse(L) -> /* reverse of a list computed by tail recursion */
 reverse_1(L,[]);
-
+reverse_1(L, M) -> /* called by reverse(L), not be used otherwise */
+L==[]? M: reverse_1(L[>],[L[.]|M]); 
+:#;
 

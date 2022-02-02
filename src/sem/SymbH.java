@@ -220,6 +220,7 @@ public class SymbH {
 
 	public static void commitVarFunc ( String s ) throws Exc {
 		if ( onGoingDef && currDef.tSymb == functType ) {
+			s=s.substring(0,s.length()-1); // remove the separator ";"
 			if ( newDef ) {
 				currDef.finfo.modFunctSource(s);
 				SymbolTableH.addFunc(currDef);
@@ -301,8 +302,9 @@ public class SymbH {
 	public static void endFdef ( CodeUnit uc ) {
 		currDef.finfo.code = uc;
 	}
-	public static void endLambaFdef ( CodeUnit uc ) throws Exc {
+	public static void endLambaFdef ( CodeUnit uc, String s ) throws Exc {
 		currLambdaFunct.code = uc;
+		currLambdaFunct.source = s;
 		SymbolTableH.addLambdaFunc(currLambdaFunct);
 		isLambda = false;
 	}
@@ -365,6 +367,11 @@ public class SymbH {
 	
 	public static boolean isNewDef( ) {
 		return newDef;
+	}
+	
+	public static boolean isNewFunctDef ( String idN, boolean hasLabel ) {
+		return  newDef && (currDef.idSymb.equals(idN) || (!hasLabel && currDef.hasLabel && 
+				currDef.idSymb.equals(currDef.label+"."+idN)) );
 	}
 	
 	public static int typeGV ( int j ) throws Exc {
@@ -624,6 +631,10 @@ public class SymbH {
 		return functType;		
 	}
 
+	public static int iCurrFactID ( )  {
+		return iCurrFactID;
+	}
+
 	public static int iSymbFunc  ( String idN ) throws Exc {
 		if ( onGoingDef && currDef.tSymb == functType && currDef.idSymb.equals(idN) )
 			return -1;
@@ -636,6 +647,28 @@ public class SymbH {
 		}
 	}
 	
+	public static FunctInfo finfoID ( String idN ) throws Exc {
+		int j = SymbolTableH.searchID(idN);
+		if ( j >= 0 && SymbolTableH.symbols.get(j).tSymb==functType)
+			return SymbolTableH.symbols.get(j).finfo;
+		else
+			throw new Exc_Sem(ErrorType.FATAL_ERROR, "-- unexpected parser behavior in calling SymbH");		
+	}
+	
+	public static FunctInfo finfo ( int j ) throws Exc {
+		if ( j >= 0 && j < SymbolTableH.nSymb() && SymbolTableH.symbols.get(j).tSymb==functType)
+			return SymbolTableH.symbols.get(j).finfo;
+		else
+			if ( j==-1 ) // current function definition 
+				return finfoCurrDef();
+			else
+				throw new Exc_Sem(ErrorType.FATAL_ERROR, "-- unexpected parser behavior in calling SymbH");		
+	}
+	
+	
+	public static FunctInfo finfoCurrDef (  ) throws Exc {
+		return currDef.finfo;
+	}
 	public static boolean hasSideEffect( int j ) {
 		FunctInfo calledFuncInfo = (j == -1 )? currDef.finfo: SymbolTableH.symbols.get(j).finfo;
 		return calledFuncInfo.hasSideEffect;
@@ -690,6 +723,10 @@ public class SymbH {
 			FunctInfo calledFuncInfo = (i == -1 )? currDef.finfo: SymbolTableH.symbols.get(i).finfo;
 			return calledFuncInfo.arityFunctPar(iFormFPar) == iActFPar_NP;
 		}
+	}
+	
+	public static int currArityFunctPar ( int iFormPar ) {
+		return currDef.finfo.arityFunctPar(iFormPar);
 	}
 	
 	public static boolean equivLambdaSignature(int i, int iFormFPar) {

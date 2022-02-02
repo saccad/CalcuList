@@ -351,13 +351,21 @@ public class Lex {
 			}
 		else 
 			try {
-				ival = Long.parseLong(svalue); 
+				ival = Long.parseLong(svalue);
 				History.addSubStr(Long.toString(ival));				
-				if ( ival >= Integer.MIN_VALUE && ival <= Integer.MAX_VALUE )
-					token=Token.INT;
+				if ( ioh.currChar() == 'l' || ioh.currChar() == 'L') {
+					History.addChar('L');
+					ioh.nextChar();
+				}
+				else
+					if ( ival <= Integer.MAX_VALUE )
+						token=Token.INT;
+					else 
+							throw new Exc_Synt(ErrorType.WRONG_LONG);
 			}
 			catch ( NumberFormatException e ) {
-				if ( svalue.equals("9223372036854775808"))
+				if ( svalue.equals(Long.toString(Long.MIN_VALUE).substring(1)))
+					// max absolute long value is Long.MAX_VALUE (i.e., 9223372036854775807) = -Long.MIN_VALUE-1 
 					throw new Exc_Synt(ErrorType.WRONG_MAX_VAL_LONG);
 				else
 					throw new Exc_Synt(ErrorType.WRONG_INT_LONG);
@@ -437,7 +445,7 @@ public class Lex {
 							if ( ioh.currChar() == '>' ) {
 								token=Token.MAP;
 								ioh.nextChar();
-								History.addSubStr(" -> ");
+								History.addSubStr("-> ");
 							}
 							else {
 								token = Token.MINUS; 
@@ -755,7 +763,7 @@ public class Lex {
 	  else
 		  History.addChar(',');
   }
-
+  
 // void printH_Dot( ) {
 //		  History.addChar('.');
 //  }

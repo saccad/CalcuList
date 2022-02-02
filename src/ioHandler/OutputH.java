@@ -205,28 +205,41 @@ public class OutputH {
 			else
 				System.out.print("*  NO CURRENT LABEL\n \n");
 		}
+		
+		public static void printLambdas() {
+			System.out.print("\n------LAMBDA FUNCTIONS------\n");
+			for ( int i =0; i < SymbolTableH.nLambdaFuncts(); i++) {
+				System.out.print("(L"+(i+1)+") ");
+				System.out.println(SymbolTableH.lambda_source(i));
+			}			
+		}
 
 		public static void printFuns( int nUtil) {
 			System.out.print("\n------FUNCTIONS------\n");
-			System.out.println("Built-in: _exp ( P1 )");
-			System.out.println("Built-in: _ind ( P1, P2 )");
-			System.out.println("Built-in: _ind ( P1, P2, P3 )");
-			System.out.println("Built-in: _isKey ( P1, P2 )");
-			System.out.println("Built-in: _len ( P1 )");
-			System.out.println("Built-in: _log ( P1 )");
-			System.out.println("Built-in: _pow ( P1, P2 )");
-			System.out.println("Built-in: _rand ( )");
-			System.out.println("Built-in: _tuple ( P1 )");
-			System.out.println("Built-in: _gDate ( )");
-			System.out.println("Built-in: _gDate ( P1, P2 )");
-			System.out.println("Built-in: _pDate ( P1 )");
-			System.out.println("Built-in: _pDate ( P1, P2 )");
+			System.out.println("-- Built-in Functions");
+			System.out.println("(B1): _exp ( P1 )");
+			System.out.println("(B2): _ind ( P1, P2 )");
+			System.out.println("(B3): _ind ( P1, P2, P3 )");
+			System.out.println("(B4): _isKey ( P1, P2 )");
+			System.out.println("(B5): _len ( P1 )");
+			System.out.println("(B6): _log ( P1 )");
+			System.out.println("(B7): _pow ( P1, P2 )");
+			System.out.println("(B8): _rand ( )");
+			System.out.println("(B9): _tuple ( P1 )");
+			System.out.println("(B10): _gDate ( )");
+			System.out.println("(B11): _gDate ( P1, P2 )");
+			System.out.println("(B12): _pDate ( P1 )");
+			System.out.println("(B13): _pDate ( P1, P2 )");
 			char UorF ='U';
+			if ( nUtil > 0 )
+				System.out.println("-- Utility Functions");
 			for ( int i =0; i < SymbolTableH.nSymb(); i++)
 				if ( SymbolTableH.tSymb(i) == SymbH.functType ) {
 					int iFunct = SymbolTableH.iVarFunc(i);
-					if ( iFunct >= nUtil )
-						UorF='F';
+					if ( iFunct == nUtil ) {
+						UorF='D';
+						System.out.println("-- Defined Functions");
+					}
 					System.out.print("("+UorF+(SymbolTableH.iVarFunc(i)+1)+") ");
 					System.out.print(SymbolTableH.idSymb(i));
 					functDescr(i);
@@ -355,7 +368,7 @@ public class OutputH {
 			if ( iFunct < nUtil )
 				System.out.print("(U"+(iFunct+1)+") ");
 			else
-				System.out.print("(F"+(iFunct+1)+") ");
+				System.out.print("(D"+(iFunct+1)+") ");
 			System.out.print(SymbolTableH.idSymb(i));
 			functDescr(i);
 			System.out.println("");	

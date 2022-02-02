@@ -26,6 +26,8 @@ import java.io.*;
 import error.Exc;
 import error.Exc_Exec;
 import error.Exc.ErrorType;
+import sem.SymbolTableH;
+import sem.LambdaFunctInfo;
 
 /*
  * Printing the output stored in OUTPUT 
@@ -133,7 +135,7 @@ public class PrintOutput {
 			System.out.print(""+(int) v);
 			break;
 		case Exec.LongT:
-			System.out.print(""+Double.doubleToRawLongBits(v));
+			System.out.print(""+Double.doubleToRawLongBits(v)+'L');
 			break;
 		case Exec.CharQF:
 			printQuotedChar((char)v);
@@ -178,6 +180,9 @@ public class PrintOutput {
 		case Exec.TypeT: case Exec.MetaTypeT:
 			System.out.print(""+ Exec.types[(int)v]);
 			break;
+		case Exec.FuncT: 
+			printFunction((int)v);
+			break;
 		default:
 			throw new Exc_Exec(Exc.ErrorType.WRONG_PRINT_FORMAT);		
 		}
@@ -220,16 +225,46 @@ public class PrintOutput {
 		}
 	}
 
-//	private static void printQuotedStringNoEsc(int v) {
-//		System.out.print('"');
-//		int n = (int)Exec.MEM[(int) v];
-//		int kk = (int)v-1;
-//		for ( int i = 0; i < n; i++ ) {
-//			System.out.print(""+ (char) Exec.MEM[kk]);
-//			kk--;
-//		}
-//		System.out.print('"');		
-//	}
+//  this function cannot be used within the assembler env
+	public static void printFunction(int v) throws Exc {
+		if ( v >= 0) {
+			int iSymb= SymbolTableH.searchF(v);
+			System.out.print(SymbolTableH.finfo_source(iSymb));
+		}
+		else {
+			LambdaFunctInfo lf = SymbolTableH.lambdaFuncts.get(-v-1);
+			System.out.print(lf.source());
+			if ( lf.useFunctParms ) {
+				int k = Exec.WRIL+1;
+				for ( int i=0; i<lf.nFunctParms; i++ ) {
+					System.out.print("\n- "+lf.parmID(i)+": ");
+					Instruction instL = Exec.CODE[k+1]; // built lambda instruction
+					int parmT = (int) instL.getOperand();
+					System.out.print(Exec.types[parmT]);
+					if ( parmT == Exec.FuncT ) 
+						System.out.print("/"+lf.parmArity(i));
+					System.out.print(" = ");
+					instL = Exec.CODE[k]; // built lambda instruction
+					double parmV = instL.getOperand();
+					if ( parmT == Exec.FuncT ) {
+						Instruction instF = Exec.CODE[(int) parmV]; // first instruction of the parameter function
+						int iF = (int) instF.getOperand();
+						if ( iF>=0 ) {
+							int iSymb = SymbolTableH.searchF(iF);
+							System.out.print(SymbolTableH.finfo_source(iSymb));
+						}
+						else {
+							LambdaFunctInfo lfP = SymbolTableH.lambdaFuncts.get(-iF-1);
+							System.out.print(lfP.source());
+						}
+					}
+					else
+						printVarVal(parmT,parmV);
+					k+=2;
+				}
+			}
+		}
+	}
 
 	public static void printVarVal(int tSymb, double val ) throws Exc {
 		if( tSymb == Exec.NullT ) {
@@ -253,7 +288,7 @@ public class PrintOutput {
 			return;
 		}
 		if( tSymb == Exec.LongT ) {
-			System.out.print(Double.doubleToRawLongBits(val));
+			System.out.print(""+Double.doubleToRawLongBits(val)+'L');
 			return;
 		}
 		if( tSymb == Exec.CharT ) {
@@ -385,7 +420,7 @@ public class PrintOutput {
 			return;
 		}
 		if( tSymb == Exec.LongT ) {
-			System.out.print(Double.doubleToRawLongBits(val));
+			System.out.print(""+Double.doubleToRawLongBits(val)+'L');
 			return;
 		}
 		if( tSymb == Exec.CharT ) {
