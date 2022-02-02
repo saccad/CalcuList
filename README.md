@@ -6,6 +6,6 @@ The language adopts a Python-like syntax and enables interactive computation ses
 The language supports higher order functions, which  may be effectively used to implement generic MapReduce  recursive procedures to manipulate json lists. As MapReduce is a popular model in distributed computing that underpins many NoSQL systems and a json list can be thought of as a dataset of a document NoSQL datastore, CalcuList can be used for teaching advanced query algorithms for document datastores such as MongoDB and CouchDB.
 
 ###### References
-[1] [Domenico Saccà, Angelo Furfaro: CalcuList: a Functional Language Extended with Imperative Features. CoRR abs/1802.06651 (2018)](https://arxiv.org/abs/1802.06651)
+[1] [Domenico Saccà, Angelo Furfaro: CalcuList: a Functional Language Extended with Imperative Features. CoRR abs/1802.06651 (2018)]  (https://arxiv.org/abs/1802.06651)
 
-[2] [Domenico Saccà, Angelo Furfaro: Using CalcuList To MapReduce Jsons. IDEAS 2018: 74-83](https://dl.acm.org/citation.cfm?doid=3216122.3216164)
+[2] [Domenico Saccà, Angelo Furfaro: Using CalcuList To MapReduce Jsons. IDEAS 2018: 74-83]  (https://dl.acm.org/citation.cfm?doid=3216122.3216164)
