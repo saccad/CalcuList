@@ -34,8 +34,8 @@ public class OutputH {
 	  public static final String prompt = ">> ";
 	  public static final String promptF = ".. ";
 	  private static boolean isPrompt=true; // true if the previous line ends with semicolon
-	  static private String release = "4.3.1";
-	  static private String releaseDate = "December 25, 2020";
+	  static private String release = "4.4.1";
+	  static private String releaseDate = "February 1, 2022";
 	  
 //	  static String labelP = "[a-zA-Z]\\w*\\u002E.*";
 

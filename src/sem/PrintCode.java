@@ -24,7 +24,6 @@ package sem;
 
 import error.Exc;
 import exec.Exec;
-import sem.CodeUnit;
 
 public class PrintCode {
 

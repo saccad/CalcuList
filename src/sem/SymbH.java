@@ -647,14 +647,6 @@ public class SymbH {
 		}
 	}
 	
-	public static FunctInfo finfoID ( String idN ) throws Exc {
-		int j = SymbolTableH.searchID(idN);
-		if ( j >= 0 && SymbolTableH.symbols.get(j).tSymb==functType)
-			return SymbolTableH.symbols.get(j).finfo;
-		else
-			throw new Exc_Sem(ErrorType.FATAL_ERROR, "-- unexpected parser behavior in calling SymbH");		
-	}
-	
 	public static FunctInfo finfo ( int j ) throws Exc {
 		if ( j >= 0 && j < SymbolTableH.nSymb() && SymbolTableH.symbols.get(j).tSymb==functType)
 			return SymbolTableH.symbols.get(j).finfo;
@@ -712,28 +704,11 @@ public class SymbH {
 	public static int currFunctRetArity () {
 		return retArityCurrFunct;
 	}
-
-	public static boolean equivSignature(int i, int iFormFPar, int iActFPar_NP ) {
-		//if (isLambda ) {
-//			System.out.println("**lambda - arity="+currLambdaFunct.arityFunctPar(iFormFPar));
-//			return currLambdaFunct.arityFunctPar(iFormFPar)==iActFPar_NP;
-//		}
-//		else {
-		{
-			FunctInfo calledFuncInfo = (i == -1 )? currDef.finfo: SymbolTableH.symbols.get(i).finfo;
-			return calledFuncInfo.arityFunctPar(iFormFPar) == iActFPar_NP;
-		}
-	}
 	
 	public static int currArityFunctPar ( int iFormPar ) {
 		return currDef.finfo.arityFunctPar(iFormPar);
 	}
 	
-	public static boolean equivLambdaSignature(int i, int iFormFPar) {
-		FunctInfo calledFuncInfo = (i == -1 )? currDef.finfo: SymbolTableH.symbols.get(i).finfo;
-		return calledFuncInfo.arityFunctPar(iFormFPar) == currLambdaFunct.nP();
-	}
-
 	public static boolean checkFunctRet( ) {
 		return currDef.finfo.typeRet()==functType;
 	}

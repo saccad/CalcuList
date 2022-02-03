@@ -2080,8 +2080,7 @@ public class Parser {
 	//<simpleTerm> -> <fact> { OSPAR <listStringJsonElems> CSPAR | CAST TYPEC } 
 	 static int simpleTerm ( boolean se ) throws Exc {
 	 	 if ( inFirst(first_simpleTerm) ) { 
-//	 		 int currT = fact(se);
-	 		 int currT = fact1(se); 
+	 		 int currT = fact(se); 
 	 		 while ( lex.currToken()== Token.OPAR ) {
 	 			 lex.nextToken();
 	 			 currT= call(se);
@@ -2228,177 +2227,10 @@ public class Parser {
 		 Transl.ins(Operator.ESTRING,0);
 	 }
 
-	//<fact> -> ( IDL | ID ) [ OPAR <callFunct> CPAR [ OPAR <callFunct1> CPAR ]  ] ) | 
-	// 				 UNDERSCORE <factBuiltIn> | OSPAR [ <constListElems> ] CSPAR  |  
-	//               OBRACE [ <fields> ] CBRACE | <lambda> |
-	//               OPAR  <ifExpr(se)>  CPAR [ OPAR <callFunct1> CPAR ] ) | 
-	// 				 INT | LONG | DOUBLE | CHAR | STRING | NULL | TRUE | FALSE | TYPE
-	 static int fact (  boolean se ) throws Exc {
-		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
-			 String idName = lex.IDName();
-			 boolean hasLabel= lex.currToken()==Token.IDL;
-			 String label =   hasLabel? lex.currLabel(): null;
-			 int idType = SymbH.setCurrID(idName,hasLabel,label,setLabel,setLabelID);
-			 if ( idType == SymbH.undefID )
-					throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
-			 int retTypeF=SymbH.currFunctRetType();
-			 int retArityF=SymbH.currFunctRetArity();
-			 lex.nextToken();
-			 if ( lex.currToken() == Token.OPAR ) {
-				 if ( idType != SymbH.functType )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								"found a variable - expected a function");
-				 lex.nextToken();
-				 callFunct(se,idName);
-				 lex.accept(Token.CPAR );
-				 if ( lex.currToken()==Token.OPAR ) {
-					 if ( retTypeF!=SymbH.functType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									"found a function returning a variable - expected a function returning a function");
-					 callFunct1(se,retArityF);
-					 lex.accept(Token.CPAR);
-					 return Exec.NoType;
-				 }
-				 else
-					 if ( retTypeF==SymbH.functType )
-						 return Exec.FuncT+retArityF; /* funct/0, functT/1, etc */
-					 else
-						 return Exec.NoType;			 
-			 }
-			 if ( !SymbH.isParam() && idType == SymbH.functType ) { 
-				 // case of an external function passed as a argument of a function				 
-				 Transl.ins(Operator.PUSHF,SymbH.iCurrVarFunc(), "*-> "+idName);
-				 return Exec.FuncT+SymbH.currFunctParam_NP();
-			 }
-			 if (SymbH.isParam() ) {
-				 int nPar = SymbH.nParCurrFunDef();
-				 Transl.ins(Operator.LOADARG,nPar-SymbH.iCurrVarFunc());
-				 Transl.ins(Operator.DEREF,0);
-				 if ( idType == SymbH.functType ) {
-					 return Exec.FuncT+SymbH.currFunctParam_NP();
-				 }
-				 else
-					 return Exec.NoType;
-			 }
-			 int retType=Exec.NoType;
-			 if ( SymbH.isLocVar() ) 
-				 Transl.ins(Operator.LOADLV,SymbH.iCurrVarFunc());
-			 else { // global variable
-				 if ( typeDef == isVarDef || typeDef == isComp  ) 
-					 if ( !hasLabel )
-						 retType = SymbH.typeGV(SymbH.iCurrVarFunc());
-				 Transl.ins(Operator.LOADGV,SymbH.iCurrVarFunc());
-			 }
-			 Transl.ins(Operator.DEREF,0);
-			 return retType; 
-		 }
-		 if ( lex.currToken() == Token.UNDERSCORE ) { 
-			 lex.nextToken();
-			 return factBuiltIn(se);
-		 }
-		 if ( lex.currToken() == Token.OSPAR ) {
-				 Transl.ins(Operator.SLIST,0);
-				 lex.nextToken();
-				 if ( lex.currToken() != Token.CSPAR ) { 
-					 boolean isApp = constListElems(se);
-					 if ( !isApp ) // no end list if a list has been appended
-						 Transl.ins(Operator.ELIST,0);
-				 }
-				 else
-					 Transl.ins(Operator.ELIST,0);
-				 lex.accept(Token.CSPAR );
-				 return Exec.ListT;
-		 }
-		 if ( lex.currToken() == Token.OBRACE ) {
-			 Transl.ins(Operator.SJSON,0);
-			 lex.nextToken();
-			 if ( lex.currToken() != Token.CBRACE  ) 
-				 fields(se);
-			 Transl.ins(Operator.EJSON,0);
-			 lex.accept(Token.CBRACE );
-			 return Exec.JsonT;
-		 }
-		 if ( lex.currToken() == Token.LAMBDA ) 
-			  return lambda(false,0,0); // false since lambda cannot be a function parameter		 
-		 
-		 if ( lex.currToken() == Token.OPAR ) {
-			 lex.nextToken();
-			 int retType = ifExpr(se);
-			 lex.accept(Token.CPAR);
-			 if ( lex.currToken() == Token.OPAR ) {
-		 		if ( retType >= Exec.FuncT )
-		 			callFunct1(se,retType-Exec.FuncT);
-		 		else 
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							"found wrong type - expected a function returning a function");
-				lex.accept(Token.CPAR);
-				return Exec.NoType;
-			 }
-			 else
-				 return retType;
-		 }				 
-		 if ( lex.currToken() == Token.DOUBLE ) {
-				 Transl.ins(Operator.PUSHD,lex.doubleVal());
-				 lex.nextToken();
-				 return Exec.DoubleT;
-		 }
-		 if ( lex.currToken() == Token.INT ) {
-			 Transl.ins(Operator.PUSHI,lex.intVal());
-			 lex.nextToken();
-			 return Exec.IntT;
-		 }
-		 if ( lex.currToken() == Token.LONG ) {
-			 Transl.ins(Operator.PUSHL,Double.longBitsToDouble(lex.longVal()));
-			 lex.nextToken();
-			 return Exec.LongT;
-		 }
-		 if ( lex.currToken() == Token.CHAR ) {
-				 Transl.ins(Operator.PUSHC,lex.CHARvalue());
-				 lex.nextToken();
-				 return Exec.CharT;
-		 }
-		 if ( lex.currToken() == Token.STRING ) {
-				 getString(lex.stringVal());
-				 if ( lex.isStringOverflow() )
-					 ioh.print("\n**Warning: string truncated to max length "+Lex.maxLenString+"\n");
-				 lex.nextToken();
-				 return Exec.StringT;
-		 }
-		 if ( lex.currToken() == Token.NULL ) {
-			 Transl.ins(Operator.PUSHN,0);
-			 lex.nextToken();
-			 return Exec.NullT;
-		 }
-		 if ( lex.currToken() == Token.TRUE ) {
-				 Transl.ins(Operator.PUSHB,1);
-				 lex.nextToken();
-				 return Exec.BoolT;
-		 }
-		 if ( lex.currToken() == Token.FALSE ) {
-				 Transl.ins(Operator.PUSHB,0);
-				 lex.nextToken();
-				 return Exec.BoolT;
-	 	 }
-		 if ( lex.currToken() == Token.TYPE ) {
-			 if ( lex.currType() == Exec.TypeT ) {
-				 Transl.ins(Operator.PUSHMT,0);
-				 lex.nextToken();
-				 return Exec.MetaTypeT;				 
-			 }
-			 else { 
-				 Transl.ins(Operator.PUSHT,lex.currType());
-				 lex.nextToken();
-				 return Exec.TypeT;
-			 }
-		 }
-		throw raiseExc(first_fact); 
-	}
-	 
-
 		//<fact> -> 	 ( IDL | ID ) | UNDERSCORE <factBuiltIn> | OSPAR [ <constListElems> ] CSPAR  |  
 		//               OBRACE [ <fields> ] CBRACE | <lambda> | OPAR  <ifExpr(se)>  CPAR | 
 		// 				 INT | LONG | DOUBLE | CHAR | STRING | NULL | TRUE | FALSE | TYPE
-		 static int fact1 (  boolean se ) throws Exc {
+		 static int fact (  boolean se ) throws Exc {
 			 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
 				 String idName = lex.IDName();
 				 boolean hasLabel= lex.currToken()==Token.IDL;
@@ -2415,9 +2247,7 @@ public class Parser {
 							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
 									"found a variable - expected a function");
 					 if ( SymbH.isParam() ) {
-						 System.out.println("\n**funct param + currFunctParam_NP: "+SymbH.currFunctParam_NP());
 						 int iPar = SymbH.iCurrVarFunc();
-//						 int iPar = SymbH.iCurrVarFuncTot();
 						 int nPar = SymbH.currFunctParam_NP(); // for lambda, its parameters only
 						 int nParTot = SymbH.nParCurrFunDef();
 						 currFunctCalled=new FunctCalled(idName,FunctCalled.isParameter,iPar,nPar,nParTot);
@@ -2425,12 +2255,6 @@ public class Parser {
 					 else {
 						 int i = SymbH.iCurrVarFunc();
 						 int j = SymbH.iCurrVarFuncTot();
-						 System.out.println("\n**funct identifier");
-						 System.out.println("ID: "+idName);
-						 System.out.println("iCurrVarFunc: "+i);
-						 System.out.println("iCurrVarFuncTot: "+j);
-//						 FunctInfo fi = SymbH.isNewFunctDef(idName,hasLabel)? SymbH.finfoCurrDef(): SymbH.finfoID(idName);
-//						 FunctInfo fi = SymbH.isNewFunctDef(idName,hasLabel)? SymbH.finfoCurrDef(): SymbH.finfo(j);
 						 FunctInfo fi = SymbH.finfo(j);
 						 currFunctCalled=new FunctCalled(idName,FunctCalled.isIdentifier,i,fi);
 					 }
@@ -2438,9 +2262,7 @@ public class Parser {
 				 }
 				 if ( !SymbH.isParam() && idType == SymbH.functType ) { 
 					 // case of an external function passed as a argument of a function				 
-					 System.out.println("\n**funct identifier not called");
 					 int i =SymbH.iCurrVarFuncTot();
-//					 currFunctCalled=new FunctCalled(idName,FunctCalled.isRetFunct,SymbH.iCurrVarFunc(),SymbH.finfoID(idName));
 					 currFunctCalled=new FunctCalled(idName,FunctCalled.isRetFunct,SymbH.iCurrVarFunc(),SymbH.finfo(i));
 					 Transl.ins(Operator.PUSHF,SymbH.iCurrVarFunc(), "*-> "+idName);
 					 return Exec.FuncT+SymbH.currFunctParam_NP();
@@ -2448,14 +2270,10 @@ public class Parser {
 				 if (SymbH.isParam() ) {
 					 int iPar = SymbH.iCurrVarFunc();
 					 int nPar = SymbH.nParCurrFunDef(); // for lambda, includes hosting function parameters
-					 System.out.println("\n ** ID: " + idName);
-					 System.out.println("iPar: " + iPar+" nPar: "+nPar);
 					 Transl.ins(Operator.LOADARG,nPar-iPar);
 					 Transl.ins(Operator.DEREF,0);
 					 if ( idType == SymbH.functType ) {
-						 System.out.println("\n**funct param not called");
 						 int nPar1 = SymbH.currFunctParam_NP(); // for lambda, its parameters only
-//						 currFunctCalled=new FunctCalled(idName,FunctCalled.isParameter,SymbH.iCurrVarFunc(),retArityF);
 						 currFunctCalled=new FunctCalled(idName,FunctCalled.isParameter,iPar,nPar1,nPar1);
 						 return Exec.FuncT+nPar1;
 					 }
@@ -2501,22 +2319,12 @@ public class Parser {
 				 return Exec.JsonT;
 			 }
 			 if ( lex.currToken() == Token.LAMBDA ) 
-				  return lambda(false,0,0); // false since lambda cannot be a function parameter		 
+				  return lambda(); 		 
 			 
 			 if ( lex.currToken() == Token.OPAR ) {
 				 lex.nextToken();
 				 int retType = ifExpr(se);
 				 lex.accept(Token.CPAR);
-//				 if ( lex.currToken() == Token.OPAR ) {
-//			 		if ( retType >= Exec.FuncT )
-//			 			callFunct1(se,retType-Exec.FuncT);
-//			 		else 
-//						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-//								"found wrong type - expected a function returning a function");
-//					lex.accept(Token.CPAR);
-//					return Exec.NoType;
-//				 }
-//				 else
 				 return retType;
 			 }				 
 			 if ( lex.currToken() == Token.DOUBLE ) {
@@ -2747,7 +2555,6 @@ public class Parser {
 
 		// <call> -> [ <ifExpr>  { COMMA <ifExpr> } ]
 	 static int call (  boolean se ) throws Exc {
-		 System.out.println("\n ** Start Call");
 		 FunctCalled fc = new FunctCalled(currFunctCalled);
 		 if ( !se && fc.hasSideEffect )
 			 throw new Exc_Synt(ErrorType.SIDE_EFFECT, ": " + fc.ID);			 
@@ -2797,9 +2604,6 @@ public class Parser {
 		 if ( fc.functionType==FunctCalled.isParameter ) {
 			 int nParCFTot = fc.numParamsTot;
 			 int iParCF = fc.functCode;
-			 System.out.println("\n ** Parameter: "+fc.ID+"");
-			 System.out.println("nParCF: "+nParCFTot);
-			 System.out.println("iParCF: "+iParCF);
 			 Transl.ins(Operator.LOADARG,nParCFTot-iParCF);
 			 Transl.ins(Operator.DEREF,0);
 			 Transl.ins(Operator.CALLS,0,"-> ("+fc.ID+")");
@@ -2812,132 +2616,15 @@ public class Parser {
 				 Transl.ins(Operator.CALLS,0,"*-> returned function ");
 			 }	
 		 if ( fc.retT == SymbH.functType) {
-			 System.out.println("\n ** End Call");
 			 currFunctCalled = new FunctCalled("",FunctCalled.isRetFunct,0,fc.retFn,fc.retFn); //** da sistemare
 			 return Exec.FuncT+fc.retFn;
 		 }
 		 else
 			 return Exec.NoType;
 	}
-
-	// <callFunct> -> [ ( <ifExpr> | <lambda> ) { COMMA ( <ifExpr> | <lambda> ) } ]
-	 static void callFunct (  boolean se, String idN ) throws Exc {
-		 int codeFunct=-1, iFunctCalled=-1, iFunctParam=-1;
-		 boolean isFunctParameter = SymbH.isParam();
-		 if ( isFunctParameter ) {
-			 iFunctParam = SymbH.iCurrVarFunc(); // equals to the parameter index
-			 //iFunctCalled=-1; // it is the the function currently defined
-		 }
-		 else {
-			 codeFunct = SymbH.iCurrVarFunc(); // equals to the relative function index
-			 iFunctCalled = SymbH.iCurrVarFuncTot(); // equals to the absolute function index
-			 if ( !se && SymbH.hasSideEffect(iFunctCalled) )
-				 throw new Exc_Synt(ErrorType.SIDE_EFFECT, ": " + idN);			 
-		 }
-		 int nFormPar = isFunctParameter? SymbH.currFunctParam_NP():
-			 								SymbH.nPar(iFunctCalled); 
-		 int iPar = 0;
-		 if ( inFirst(first_callFunct) ) {
-			 boolean first = true;
-			 do {
-				 if ( ! first ) {
-					 lex.printH_Comma(false); // no space after comma in history
-					 lex.nextToken();
-				 }
-			 	 if ( iPar == nFormPar )
-			 		 throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
-							"- expected number: "+nFormPar);
-				 int formPar_t = isFunctParameter? SymbH.varType:
-					 								SymbH.parT(iFunctCalled,iPar);
-				 if ( lex.currToken() == Token.LAMBDA ) {
-					 if ( formPar_t != SymbH.functType )
-							throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, "- found lambda, expected variable type");
-					 lambda(true,iFunctCalled,iPar);
-					 if ( lex.currToken() != Token.COMMA &&  lex.currToken() != Token.CPAR ) 
-						 throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
-								"-- expected ',' or ')' to terminate lambda function definition - found " + lex.tokenFullDescr());					 
-				 }
-				 else {
-					 int ifExpr1_t = ifExpr(se);
-					 if ( ifExpr1_t >= Exec.FuncT && formPar_t != SymbH.functType )
-							throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-									"- expected variable type");
-					 if ( ifExpr1_t < Exec.FuncT && formPar_t == SymbH.functType )
-							throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-									"- expected function type");
-					 int iActFPar_NP; // arity of the i-th function parameter
-					 if ( formPar_t == SymbH.functType  ) { //
-						 if ( SymbH.isParam() ) 
-							 iActFPar_NP = SymbH.currFunctParam_NP(); 
-						 else {
-							 int iFP = SymbH.iCurrVarFuncTot();
-							 if ( SymbH.hasFunctParam(iFP) )
-									throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-											" an actual parameter function cannot have function parameters");
-							 if ( SymbH.hasSideEffect(iFP) )
-									throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-											" an actual parameter function cannot have side effects");
-							 if ( SymbH.currFunctRetType() == SymbH.functType  )
-									throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-											" an actual parameter function cannot return a function");
-							 iActFPar_NP = SymbH.nPar(iFP);
-						 }
-						 if ( !SymbH.equivSignature(iFunctCalled,iPar, iActFPar_NP) ) 
-								throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-										"- actual and formal function parameters have different arity");
-						 }
-				 }
-				 iPar++; 
-				 first = false;
-			 } while ( lex.currToken() == Token.COMMA );
-		 }
-		 if ( iPar != nFormPar )
-				throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
-						iPar+"- expected number: "+nFormPar);
-		 if ( isFunctParameter ) {
-			 int nPar = SymbH.nParCurrFunDef();
-			 Transl.ins(Operator.LOADARG,nPar-iFunctParam);
-			 Transl.ins(Operator.DEREF,0);
-			 Transl.ins(Operator.CALLS,0,"-> ("+idN+")");
-		 }
-		 else
-			 Transl.ins(Operator.CALL,codeFunct,"-> "+idN);
-		 return;
-	}
-
-		// <callFunct1> -> [ <ifExpr>  { COMMA <ifExpr> } ]
-	 static void callFunct1 (  boolean se, int nFormPar ) throws Exc {
-		 Transl.ins(Operator.STOREF, 0);
-		 lex.nextToken();
-		 int iPar = 0;
-		 if ( inFirst(first_callFunct1) ) {
-			 boolean first = true;
-			 do {
-				 if ( ! first ) {
-					 lex.printH_Comma(false); // no space after comma in history
-					 lex.nextToken();
-				 }
-			 	 if ( iPar == nFormPar )
-			 		 throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
-							"- expected number: "+nFormPar);
-				 int ifExpr1_t = ifExpr(se);
-				 if ( ifExpr1_t >= Exec.FuncT )
-						throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-								"- expected variable type");
-				 iPar++; 
-				 first = false;
-			 } while ( lex.currToken() == Token.COMMA );
-		 }
-		 if ( iPar != nFormPar )
-				throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
-						iPar+"- expected number: "+nFormPar);
-		 Transl.ins(Operator.GETF,0);
-		 Transl.ins(Operator.CALLS,0,"*-> returned function ");
-		 return;
-	}
 	 
 	// <lambda> -> LAMBDA [ <formalParLambda> ] MAP <ifExpr>
-	static int lambda (boolean isParam,  int iFunctCalled, int iPar ) throws Exc {
+	static int lambda ( ) throws Exc {
 		 iStartLambda = History.nCurrComm()-1;
 //		 History.addChar(' ');
 		 lex.nextToken(); // skip LAMBDA
@@ -2958,11 +2645,6 @@ public class Parser {
 		 lex.nextToken(); // skip CPAR
 		 lex.accept(Token.MAP);
 		 // check equivalence with formal parameter
-		 if ( isParam ) {
-			 if ( !SymbH.equivLambdaSignature(iFunctCalled,iPar) )
-				 throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
-						"- actual and formal function parameters have different arity");	
-		 }
 		 int retType = ifExpr(false); // no side effects
 	 	 if ( retType>=Exec.FuncT )
      	 	throw new Exc_Synt(ErrorType.WRONG_RET_TYPE, ": a lambda function cannot return a function");
@@ -2983,8 +2665,6 @@ public class Parser {
 	 	 }
 	 	 else
 	 		 numParamsTot = nLP;
-		 System.out.println("\n**lambda");
-//		 currFunctCalled = new FunctCalled("",FunctCalled.isRetFunct,0,nLP,SymbH.nParCurrFunDef()); //** da sistemare
 		 currFunctCalled = new FunctCalled("",FunctCalled.isRetFunct,0,nLP,numParamsTot); //** da sistemare
 	 	 return Exec.FuncT+nLP;
 	}
@@ -3423,7 +3103,7 @@ class FunctCalled {
 		pFn = new ArrayList<Integer> (fi.pFn);
 		retT = fi.retT;
 		retFn = fi.retFn;
-		print();
+//		print();
 	}
 	FunctCalled (String idN, int fType, int fCode, int fArity, int fArityTot ) {
 		this.ID = idN;
@@ -3441,7 +3121,7 @@ class FunctCalled {
 		}
 		retT = SymbH.varType;
 		retFn = 0;
-		print();
+//		print();
 	}
 	FunctCalled ( FunctCalled fc ) {
 		this.ID = fc.ID;
@@ -3455,20 +3135,20 @@ class FunctCalled {
 		pFn = new ArrayList<Integer>(fc.pFn);
 		retT=fc.retT;
 		retFn=fc.retFn;
-		print();
+//		print();
 	}
-	void print() {
-		System.out.println("IDNAME: "+ID);
-		System.out.println("fType: "+functionType);
-		System.out.println("fCode: "+functCode);
-		System.out.println("sideEffect: "+hasSideEffect);
-		System.out.println("nParams: "+numParams);
-		System.out.println("nParamsTot: "+numParamsTot);
-		System.out.println("hasFunctParams: "+hasFunctParams);
-		System.out.println("retT: "+retT);
-		System.out.println("retFn: "+retFn);
-		
-	}
+//	void print() {
+//		System.out.println("IDNAME: "+ID);
+//		System.out.println("fType: "+functionType);
+//		System.out.println("fCode: "+functCode);
+//		System.out.println("sideEffect: "+hasSideEffect);
+//		System.out.println("nParams: "+numParams);
+//		System.out.println("nParamsTot: "+numParamsTot);
+//		System.out.println("hasFunctParams: "+hasFunctParams);
+//		System.out.println("retT: "+retT);
+//		System.out.println("retFn: "+retFn);
+//		
+//	}
 
 } // end class FunctCalled
 
