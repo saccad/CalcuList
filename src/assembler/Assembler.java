@@ -33,15 +33,15 @@ import java.util.ArrayList;
 
 
 public class Assembler {
-
 	static  BufferedReader reader;
 	static private int nMaxListing;
-	static private String release = "4.3.1";
-	static private String releaseDate = "December 25, 2020";
+	static private String release = "5.0.0";
+	static private String releaseDate = "April 24, 2026";
 	static String defaultFileExt = ".clvm";
 	private static final int labelInitCapacity = 200;
 	private static final int calledLabelInitCapacity = 100;
 	public static void main(String [] args){
+		PrintOutput.isCalcuListEnv = false; // no print of functions and labels
 		reader = new BufferedReader(new InputStreamReader(System.in));
 		boolean error = false;
 		try {
@@ -127,7 +127,7 @@ public class Assembler {
 					boolean debugReq = E.charAt(0)=='Y' || E.charAt(0)=='y';
 					Exec.exec(debugReq,nPr);
 					if (Exec.getOP() > 0 )
-						PrintOutput.printOutput(true);
+						PrintOutput.printOutput();
 					System.out.print("\nQuit the session? (Y/N) \n>> ");
 					E = reader.readLine();
 					if ( E.charAt(0) == 'Y' || E.charAt(0) == 'y' )
@@ -136,7 +136,7 @@ public class Assembler {
 			} while ( !fr.endFile() && !endSession );
 			fr.closeFile();
 		} 	catch (Exc e ) {
-				System.out.println("\n**Execuction Terminated "+e.print());
+				System.out.println("\n**Execution Terminated "+e.print());
 			}
 			catch ( Exception e ) {
 				System.out.println("\n** Unexpected error ** "+e.getClass().getName()+": "+e.getMessage());

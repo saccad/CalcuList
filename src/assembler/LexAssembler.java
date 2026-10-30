@@ -265,7 +265,8 @@ public class LexAssembler {
 	static void checkOperandSymb( ) throws Exc{
 		if ( line.charAt(iLine) != '+' && line.charAt(iLine) != '-'
 			&& line.charAt(iLine) != '.' && line.charAt(iLine) != 'e'
-				&& line.charAt(iLine) != 'E' && !Character.isDigit(line.charAt(iLine)))
+				&& line.charAt(iLine) != 'E' && 
+				!Character.isDigit(line.charAt(iLine))) 
 			throw new Exc_Assembler(ErrorType.WRONG_INSTRUCTION, "wrong operand");
 	}
 

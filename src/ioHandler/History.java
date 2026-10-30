@@ -30,6 +30,7 @@ public class History {
 	private static int histInitCapacity = 200;
 	private static ArrayList<String> hist = new ArrayList<String>(histInitCapacity);
 	private static String currComm;
+	
 	public static void startCommand () {
 		currComm=""; histOn = true;
 	}
@@ -39,6 +40,10 @@ public class History {
 			hist.add(currComm);
 			histOn=false;
 		}
+	}
+
+	public static boolean isHistOn() {
+		return histOn==true;
 	}
 
 	public static void histOff() {
@@ -56,6 +61,14 @@ public class History {
 		if ( histOn )
 			currComm += c;
 	}
+	public static void replaceLast( String ss, String ss1 ) {
+		if ( histOn ) {
+			int lss= ss.length();
+			int i_last_ss = currComm.lastIndexOf(ss);
+			String suff = currComm.substring(i_last_ss+lss);
+			currComm=currComm.substring(0,i_last_ss)+ss1+suff;
+		}
+	}
 	public static int nCurrComm( ) {
 			return currComm.length();
 	}
@@ -67,6 +80,15 @@ public class History {
 	}
 	public static String command( int i ){
 		return hist.get(i);
+	}
+	public static String lastPrefix( int k ){
+		if ( currComm==null || !histOn )
+			return "";
+		int init= currComm.length()-k;
+		if ( init > 0 ) 
+			return "..."+currComm.substring(init);
+		else
+			return currComm;
 	}
 
 }

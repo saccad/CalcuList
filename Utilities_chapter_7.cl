@@ -4,10 +4,10 @@
 UMATH: min/2, max/2, log/2, sqrt/1, divisible/2, GCD/2, LCM/2, abs/1, 
       floor_1/2, floor/1, ceil_1/2, ceil/1, round/1;
 : UMATH;
-min(x,y) -> /* minimum of two comparable (number, bool, string) elements */ 
+min(x,y) -> /* min of two comparable (number, bool, string) elements */ 
 x < y ? x: y; 
 
-max(x,y) -> /* maximum of two comparable (number, bool, string) elements */
+max(x,y) -> /* max of two comparable (number, bool, string) elements */
 x > y ? x: y; 
 
 log(b,x) -> /* logarithm of x with base b */
@@ -73,10 +73,10 @@ isUpperCase(x) -> /* returns true if x is an upper case letter */
 isLowerCase(x) -> /* returns true if x is a lower case letter */
 'a' <= x && x <= 'z';
 
-toUpperCase(x) -> /* change case to a lower case letter */
+toUpperCase(x) -> /* changes case to an upper case letter */
 isLowerCase(x)? (x-'a'+'A')@char: x;
 
-toLowerCase(x) -> /* change case to an upper case letter */
+toLowerCase(x) -> /* changes case to  a lower case letter*/
 isUpperCase(x)? (x-'A'+'a')@char: x;
 :#;
 
@@ -84,13 +84,13 @@ isUpperCase(x)? (x-'A'+'a')@char: x;
 ULIST: range/2, randL/3, randLI/3, member/2, append/2,equalL/2, compareL/2,
        maxL1/2, maxL/1, minL1/2, minL/1, reverse_1/2, reverse/1;
 :ULIST;
-range(x1,x2) -> /* construct a list of all integers in the range <x1, x2> */
+range(x1,x2) -> /* constructs a list of all integers in the range <x1, x2> */
 x1 > x2? []: [x1|range(x1+1,x2)];
 
-randL(minv, maxv, k) -> /* generate a list of k random doubles in the range <minv, maxv> */
+randL(minv, maxv, k) -> /* generates a list of k random doubles in the range <minv, maxv> */
 k<=0? []: [_rand()*(maxv-minv)+minv|randL(minv, maxv, k-1)];
 
-randLI(minv, maxv, k) -> /* generate a list of k random integers in the range <minv, maxv> */
+randLI(minv, maxv, k) -> /* generates a list of k random integers in the range <minv, maxv> */
 k<=0? []: [UMATH.round(_rand()*(maxv-minv)+minv)|randLI(minv, maxv, k-1)];
 
 /* list membership test */
@@ -98,13 +98,13 @@ member(X,L) -> /* returns true if X is an element X of the list L */
 L!=[] && ( L[.]==X || member(X,L[>]) ); 
 
 /* deep append of the list L2 to the end of a list L1, that does not modify both lists  */
-/* shallow append, coalescing the two lists, can be simply implemented as "L1+L2" */
+/* shallow append, coalescing the two lists, can be simply implemented as "L1++L2" */
 /* other semi-deep operators are: */
-/* \n(1) L1+L2[:], that only modifies L1 and \n(2) L1[:]+L2 that only modifies L2 */
-append(L1,L2) -> /* deep append of two lists L1 and L2 - more efficient than L1[:]+L2[:] */
-L1==[]? L2[:]: [L1[.]|append(L1[.],L2)];
+/* \n(1) L1++L2[:], that only modifies L1 and \n(2) L1[:]++L2 that only modifies L2 */
+append(L1,L2) -> /* deep append of two lists L1 and L2 - more efficient than L1[:]++L2[:] - - instead L1++L2 modifies L1 */
+L1==[]? L2[:]: [L1[.]|append(L1[>],L2)];
 
-equalL(L1,L2) -> /* return true if two lists have the same elements */
+equalL(L1,L2) -> /* returns true if two lists have the same elements */
 L1==[]||L2==[]? L1==[]&&L2==[]: L1[.]==L2[.] && equalL(L1[>],L2[>]); 
 
 compareL(L1,L2) -> /* comparison of two lists L1 and L2: it returns \n0 if L1 and L2 have the same elements, \n-1 (resp. 1) if L1 lexicographically precedes (resp., follows) L2 */
@@ -112,13 +112,13 @@ L1==[] && L2==[]? 0: L1==[]? -1: L2==[]? 1: L1[.]<L2[.]? -1: L1[.]>L2[.]? 1: com
 
 
 /* maximum of a list */
-maxL(L) -> /* it computes the maximum of a list */
+maxL(L) -> /* computes the maximum of a list */
 L==[]? null: maxL1(L[>],L[.]);
 maxL1(L,m) -> /* called by maxL – not to be used stand-alone */
 L[>]==[]? UMATH.max(m,L[.]): maxL1(L[>],UMATH.max(m,L[.]));
 
 /* minimum of a list */
-minL(L) -> /* it computes the minimum of a list */
+minL(L) -> /* computes the minimum of a list */
 L==[]? null: minL1(L[>],L[.]);
 minL1(L,m) -> /* called by minL – not to be used stand-alone */
 L[>]==[]? UMATH.min(m,L[.]): minL1(L[>],UMATH.min(m,L[.]));

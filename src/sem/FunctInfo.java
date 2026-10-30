@@ -36,6 +36,7 @@ public class FunctInfo {
 	String comment;
 	public boolean hasSideEffect;
 	public boolean hasFunctParams;
+	public boolean isDefComplete; // false for incomplete definition of labeled function returning a function
 	CodeUnit code;
 	public ArrayList<Integer> pTs; // parameters types (varType, functType)
 	public ArrayList<Integer> pFn; // arity for function parameters
@@ -61,6 +62,7 @@ public class FunctInfo {
 		this.hasSideEffect = sideEffect;
 		source=null; comment=null;
 		hasFunctParams =false;
+		isDefComplete=true;
 		pTs = new ArrayList<Integer> (paramsInitCapacity);
 		pFn = new ArrayList<Integer> (paramsInitCapacity);
 		retT = SymbH.varType;
@@ -69,6 +71,7 @@ public class FunctInfo {
 	FunctInfo ( FunctInfo fi ) {
 		hasSideEffect = fi.hasSideEffect;
 		hasFunctParams = fi.hasFunctParams;
+		isDefComplete = fi.isDefComplete;
 		code = fi.code; 
 		source = fi.source; comment=fi.comment;
 		pTs = new ArrayList<Integer>(fi.pTs);
@@ -79,6 +82,7 @@ public class FunctInfo {
 	void mod ( FunctInfo fi ) {
 		hasSideEffect = fi.hasSideEffect;
 		hasFunctParams = fi.hasFunctParams;
+		isDefComplete = fi.isDefComplete;
 		comment=fi.comment;
 		code = fi.code; 
 		pTs = new ArrayList<Integer>(fi.pTs);
@@ -91,7 +95,7 @@ public class FunctInfo {
 		currParmsIds.add(idN);
 		pFn.add(0);
 	}
-	
+
 	String functSource() {
 		return source;
 	}
@@ -150,6 +154,10 @@ public class FunctInfo {
 	
 	int nP() {
 		return pTs.size();
+	}
+	
+	void setFuncComplete() {
+		isDefComplete=true;
 	}
 	
 	static int nCurrUsedLabels() {

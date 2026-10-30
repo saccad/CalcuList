@@ -36,19 +36,21 @@ public class Lex {
 		NOTOKEN("Null Token"), DOUBLE("DOUBLE"), INT("INT"), 
 		LONG("LONG"),ID("ID"), IDL ("labeled ID"),
 		TYPE("TYPE"), QMARK("'?'"), UNDERSCORE("'_'"), DOT("'.'"),
-		OPAR("'('"), CPAR("')'"), PLUS("'+'"), MINUS("'-'"), STAR("'*'"), 
-		DIV("'/'"), DIVTR("'//'"), COMMA("','"), 
-		SCOLON("';'"), ASSIGN("'='"), OPASSIGN("<OP>="), 
+		OPAR("'('"), CPAR("')'"), 
+		PLUS("'+'"), PLUSPLUS("'++'"), MINUS("'-'"), 
+		STAR("'*'"), DIV("'/'"), DIVTR("'//'"), 
+		COMMA("','"), SCOLON("';'"), ASSIGN("'='"), OPASS("<OP>="), 
 		GTLT("GTLT"), EQNEQ("EQNEQ"),
 		OSPAR("'['"), CSPAR("']'"), HASH("'#'"),
-		BAR("'|'"), AND("'&&'"), OR("'||'"), EMARK("'!'"), COLON("':'"), 
-		TRUE("'true'"), FALSE("'false'"), HALT("'halt'"), COMMENT ("COMMENT"),
+		PIPE("'|'"), AND("'&&'"), OR("'||'"), EMARK("'!'"), COLON("':'"), 
+		BOOL("BOOL"),
+		HALT("'halt'"), COMMENT ("COMMENT"),
 		NULL("'null'"), CHAR("CHAR"), STRING("STRING"), EXC("exc"),
 		PRINT("'^'"), OBRACE("'{'"), CBRACE("'}'"),
-		OBRACESET("'{!'"), CBRACESET("'!}'"),OBRACEPRINT("'{^'"),CBRACEPRINT("'^}'"),  
+		OBRACESET("'{!'"), CBRACESET("'!}'"),
 		CONTINUE("'&'"), PRINTOPT ("'%' OPTION"), REMAINDER("'%'"),
-		CAST("'@'"),
-		FILEOUT("'>>'"), FILEIN("'<<'"), LAMBDA("'\'"), MAP("->"),
+		CAST("'@'"), BIFUNC ("BUILT_IN_FUNC"),
+		OUT("'>>'"), IN("'<<'"), LAMBDA("'\'"), MAP("->"),
 		END("'null char'");
 		String stToken;
 		Token ( String st ) {
@@ -57,7 +59,8 @@ public class Lex {
 	}
 
 	enum AssOpType {
-		PLUS(Token.PLUS), MINUS(Token.MINUS), MULT(Token.STAR), DIV(Token.DIV), DIVTR(Token.DIVTR);
+		PLUS(Token.PLUS), MINUS(Token.MINUS), PLUSPLUS(Token.PLUSPLUS),
+		MULT(Token.STAR), DIV(Token.DIV), DIVTR(Token.DIVTR);
 		Token opToken;
 		AssOpType ( Token t ) {
 			this.opToken = t;
@@ -98,12 +101,14 @@ public class Lex {
  	private AssOpType assOpType; //  type of assign operator (PLUS, MINUS, MULT, DIV, DIVTR)
  	private GTLTOpType GTLTOpToken; //  type of relational operator (GT, GTE, LT, LTE)
  	private EQNEQOpType EQNEQOpToken; //  type of relational operator (GT, GTE, LT, LTE)
+ 	private BIFType BIFToken; // type of built-in function
  	private int typeType; //  type of type (INTT, CHART, DOUBLET, BOOLT, STRINGT, LISTT, TYPET)
 	private String svalue; // token string for ID or NUM
 	private String label; // possible label for ID
 	private char cvalue; // character value for CHAR
+	private boolean bvalue; // truth value for BOOL
 	private double dval; // double value for DOUBLE
-	private int iPrintOption=0; // 1: QUOTED, 2: INDENTED, 3: FULL INDENTED
+	private int iPrintOption=0; // 1: QUOTED OR INDENTED, 2: FULLY INDENTED
 	private long ival; // long value for INT or LONG
 	private IOH ioh; // passed by the parser
 	private boolean commentOn = false; // true if a comment must be considered as a token 
@@ -128,13 +133,13 @@ public class Lex {
 
    void nextToken() throws Exc {
  		ioh.skipWhite();
-	    	if ( ioh.isLetter() )
-	    		getName();
-	    	else
-	    		if ( ioh.isDigit() )
-	    			getNum("",false);
-	    		else  
-	     			getOther();
+		if ( ioh.isLetter() )
+    		getName();
+    	else
+    		if ( ioh.isDigit() )
+    			getNum("",false);
+    		else  
+     			getOther();
    }
    
    BIFType getBuiltIn  ( ) throws Exc {
@@ -164,7 +169,8 @@ public class Lex {
 
    
   String tokenFullDescr() {
-	  if ( token == Token.UNDERSCORE || token == Token.GTLT || token == Token.EQNEQ || token == Token.TYPE ) 
+	  if ( // token == Token.UNDERSCORE || 
+			  token == Token.GTLT || token == Token.EQNEQ || token == Token.TYPE ) 
 		  return "\'"+svalue+"\'";
 	  else 
 		  if ( token == Token.DOUBLE || token == Token.LONG || token == Token.INT || token==Token.ID )
@@ -205,6 +211,11 @@ public class Lex {
  		return EQNEQOpToken;
  }
 
+  //**  returns the type of builtin function for the current token GTLT.
+  BIFType BIF_type() {
+ 		return BIFToken;
+ }
+
   //**  returns the type of type for the token TYPE.
   int currType() {
   		return typeType;
@@ -219,6 +230,25 @@ public class Lex {
 	  truncatableString=isOn;
   }
 
+  //** gets bool value 
+  boolean valBool() throws Exc {
+	  return bvalue;
+  }
+
+  //** gets a builtin function, after having detected underscore
+  BIFType getBuiltInFunc() throws Exc {
+   		svalue = "";  
+   		int nChar=0;
+    	do {
+    		nChar++;
+    		if ( nChar > maxLenName )
+				throw new Exc_Synt(ErrorType.NAME_TOO_LONG,maxLenName+"char - '"+svalue+"'");
+    	 	svalue += ioh.currChar();
+      		ioh.nextChar();
+    	} while ( ioh.isLetter() );
+    	History.addSubStr(svalue);
+    	return getBuiltIn();   		    		
+  }
 
   //** gets token ID or Reserved Words 
   void getName() throws Exc {
@@ -230,7 +260,6 @@ public class Lex {
 				throw new Exc_Synt(ErrorType.NAME_TOO_LONG,maxLenName+"char - '"+svalue+"'");
     	 	svalue += ioh.currChar();
       		ioh.nextChar();
-
     	} while ( ioh.isLetterOrDigitOrUnderscore() );
     	getName1();   		    		
     	History.addSubStr(svalue);
@@ -239,11 +268,11 @@ public class Lex {
   //** gets token ID or Reserved Words
   void getName1() throws Exc {
         if ( svalue.equals("true")) {
-    		token = Token.TRUE;
+    		token = Token.BOOL; bvalue=true;
     		return;
         }
 	    if ( svalue.equals("false")) {
-		token = Token.FALSE;
+		token = Token.BOOL; bvalue=false;
 		return;
 	    }
 		if ( svalue.equals("halt")) {
@@ -294,10 +323,6 @@ public class Lex {
 			token=Token.EXC; 
 			return;
 		}
-//		if (svalue.equals("lambda")) {
-//			token=Token.LAMBDA; 
-//			return;
-//		}
     	if ( ioh.currChar() == '.') {
     		ioh.nextChar();
     		if ( !ioh.isLetter()  ) {
@@ -406,11 +431,7 @@ public class Lex {
   							token= Token.OBRACESET; ioh.nextChar(); History.addSubStr("! ");
   						}
   						else
-  							if ( ioh.currChar()=='^' ) {
-  	  							token= Token.OBRACEPRINT; ioh.nextChar(); History.addSubStr("^ "); 								
-  							}  
-  							else
-  								History.addChar(' ');
+  							History.addChar(' ');
   						break;
   			case '}': token = Token.CBRACE; History.addSubStr(" } ");
   						ioh.nextChar(); break;
@@ -424,21 +445,38 @@ public class Lex {
 						token = Token.HASH; 
 						History.addChar('#');
 						break;
-  			case '_': token = Token.UNDERSCORE; History.addChar('_');
-				ioh.nextChar(); break;
+  			case '_': token = Token.UNDERSCORE; ioh.nextChar(); 
+							  History.addChar('_');
+						if ( ioh.isLetter() ) {
+							token=Token.BIFUNC;
+							BIFToken=getBuiltInFunc();
+						}
+  						break;
   			case '+': 	ioh.nextChar();
   						if ( ioh.currChar() == '=' ) {
-  							token=Token.OPASSIGN; assOpType=AssOpType.PLUS;
+  							token=Token.OPASS; assOpType=AssOpType.PLUS;
   							ioh.nextChar();
   						}
-  						else {
-  							token = Token.PLUS; 
-  							History.addChar('+');
-  						}
+  						else 
+	  						if (ioh.currChar() == '+') {
+	  							ioh.nextChar(); 
+	  	  						if ( ioh.currChar() == '=' ) {
+	  	  							token=Token.OPASS; assOpType=AssOpType.PLUSPLUS;
+	  	  							ioh.nextChar();
+	  	  						}
+	  	  						else {
+		  							token = Token.PLUSPLUS; 
+		  							History.addSubStr("++");	  								  	  							
+	  	  						}
+	  						}
+	  						else {
+	  							token = Token.PLUS; 
+	  							History.addChar('+');	  							
+	  						}
   						break;
   			case '-':   ioh.nextChar();
 						if ( ioh.currChar() == '=' ) {
-							token=Token.OPASSIGN; assOpType=AssOpType.MINUS;
+							token=Token.OPASS; assOpType=AssOpType.MINUS;
 							ioh.nextChar();
 						}
 						else
@@ -454,7 +492,7 @@ public class Lex {
   						break;
   			case '*':   ioh.nextChar();
 						if ( ioh.currChar() == '=' ) {
-							token=Token.OPASSIGN; assOpType=AssOpType.MULT;
+							token=Token.OPASS; assOpType=AssOpType.MULT;
 							ioh.nextChar();
 						}
 						else {
@@ -463,11 +501,7 @@ public class Lex {
 						}
   						break;
   			case '^': token = Token.PRINT; ioh.nextChar();
-					  if ( ioh.currChar()=='}' ) {
-						  token= Token.CBRACEPRINT; ioh.nextChar(); History.addSubStr(" ^} "); 								
-					  }  
-					  else
-						  History.addChar('^');				 
+					  History.addChar('^');				 
   					  break;
   			case ',': token = Token.COMMA;
   						ioh.nextChar(); break;
@@ -525,7 +559,7 @@ public class Lex {
   					  if ( ioh.currChar() == '/' ) {
   						ioh.nextChar();
   						if ( ioh.currChar() == '=' ) {
-  							token=Token.OPASSIGN; assOpType=AssOpType.DIVTR;
+  							token=Token.OPASS; assOpType=AssOpType.DIVTR;
   							ioh.nextChar();
   						}
   						else {
@@ -535,7 +569,7 @@ public class Lex {
    					  }
   					  else
     						if ( ioh.currChar() == '=' ) {
-      							token=Token.OPASSIGN; assOpType=AssOpType.DIV;
+      							token=Token.OPASS; assOpType=AssOpType.DIV;
       							ioh.nextChar();
       						}
       						else {
@@ -559,7 +593,7 @@ public class Lex {
   					  else
   						  if ( ioh.currChar() == '>' ) {
   						  	History.addChar('>');
-  					  		token = Token.FILEOUT; svalue=">>";ioh.nextChar();						  
+  					  		token = Token.OUT; svalue=">>";ioh.nextChar();						  
   						  }
   					  break;
   			case '<': token = Token.GTLT; GTLTOpToken = GTLTOpType.LT; svalue="<";
@@ -571,7 +605,7 @@ public class Lex {
   					  else
   						  if ( ioh.currChar() == '<' ) {
   						  	History.addChar('<');
-  					  		token = Token.FILEIN; svalue="<<";ioh.nextChar();
+  					  		token = Token.IN; svalue="<<";ioh.nextChar();
   					  }						  
     				 break;
   			case ':': token = Token.COLON; ioh.nextChar(); 
@@ -588,7 +622,7 @@ public class Lex {
   						  else
   							History.addChar('!');
  					  break;
-  			case '|': token = Token.BAR; ioh.nextChar();
+  			case '|': token = Token.PIPE; ioh.nextChar();
 			  if ( ioh.currChar() == '|' ) {
 			  		token = Token.OR; History.addSubStr(" || "); ioh.nextChar();
 			  }
@@ -650,15 +684,10 @@ public class Lex {
 			  break;
   			case '%': ioh.nextChar(); 
   				switch ( ioh.currChar() ) {
-	 				case '"':  History.addSubStr(" %\" "); token=Token.PRINTOPT; 
-	 					iPrintOption=1; ioh.nextChar(); break;
 	 				case '*':  History.addSubStr(" %* "); token=Token.PRINTOPT; 
- 					iPrintOption=3; ioh.nextChar(); break;
+ 					iPrintOption=1; ioh.nextChar(); break;
 	 				case '>':  History.addSubStr(" %> "); token=Token.PRINTOPT; 
  					iPrintOption=2; ioh.nextChar(); break;
-
-//	 				case '+': History.addSubStr(" %+ "); token=Token.CONTINUE; 
-//	 					ioh.nextChar(); break;
 	 				default: 
 	 					token=Token.REMAINDER; History.addChar('%');
  				}
@@ -743,6 +772,10 @@ public class Lex {
 		  History.addChar(' ');
   }
 
+  void printH_space(  ) {
+		  History.addChar(' ');
+  }
+
   void printH_Assign( boolean spaced ) {
 	  if ( spaced ) 
 		  History.addSubStr(" = ");
@@ -764,15 +797,12 @@ public class Lex {
 		  History.addChar(',');
   }
   
-// void printH_Dot( ) {
-//		  History.addChar('.');
-//  }
-
 void accept( Token t ) throws Exc {
    	if ( token != t )
   			throw new Exc_Synt(ErrorType.WRONG_TOKEN,tokenFullDescr()+" - expected: "+t.stToken);
-  		else 
+  		else {
   			nextToken();
+  		}
   }
 
    void skipStatement ( ) {
@@ -802,14 +832,6 @@ void accept( Token t ) throws Exc {
  		else
  			throw new Exc_Synt(ErrorType.WRONG_TOKEN,token.stToken+" - expected: "+Token.CHAR.stToken);
  }
-//
-//   String mathName() throws Exc {
-// 		if ( token == Token.BUILTIN  )  {
-// 			return svalue;
-// 		}
-// 		else
-// 			throw new Exc_Synt(ErrorType.WRONG_TOKEN,token.stToken+" - expected: "+Token.BUILTIN.stToken);
-// }
 
   String IDName() throws Exc {
   		if ( token == Token.ID  || token == Token.IDL )  {

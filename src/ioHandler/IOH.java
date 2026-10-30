@@ -39,7 +39,7 @@ public class IOH {
 	  protected char look; // single lookahed character (current character)
 	  protected  String line; // single current input line
 	  protected int iLine; // line current index
-	  private  BufferedReader reader; //  standard input stream
+	  public  BufferedReader reader; //  standard input stream
 	  private  boolean isStandardInput; //  true standard input stream - false input from file
 	  private  boolean isUtilityImport; //  true if the utility file is being imported
 	  private  boolean importError; //  true if error has been detected on imported file
@@ -67,7 +67,7 @@ public class IOH {
 			// initialization of arrays
 			Exec.startArray(); FrameDebugHandler.startArray();
 		    OutputH.printStart();
-		    Parser.program(); // call Calculist	    		
+		    Parser.CalcuListSession(); // call Calculist	    		
 		 }
 
 	  public IOH(){
@@ -124,7 +124,7 @@ public class IOH {
 			// no exception expected!!
 		}
 	  }
-	  
+	  	  
 	  public void setPrompt(boolean p ) {
 		  if ( isStandardInput )
 			  OutputH.setPrompt(p);
@@ -217,7 +217,7 @@ public class IOH {
 							}
 							catch (Exception e) {
 								System.out.println(e.getMessage());
-								// no exception expected!!
+								// but no exception expected!!
 							}
 							if (line==null) 
 								look=(char)0; // end file
@@ -256,11 +256,14 @@ public class IOH {
 				    isUtilityImport = false;						
 				}
 				if ( isStandardInput ) {
+					if ( !History.isHistOn() )
+						OutputH.setPrompt(true);
 					OutputH.prompt();
 					try {
 						line = reader.readLine();
 					}
 					catch (Exception e) {
+					    System.out.println("unexpected errorin ioh.nextChar:"+e);
 						// no exception expected!!
 					}
 				}
@@ -282,7 +285,7 @@ public class IOH {
 	  /** Skip over leading white space.
 	   */
 	  public void skipWhite() {
-		  while ( Character.isWhitespace(look) ) 
+		while ( Character.isWhitespace(look) ) 
 			  try{
 	      		 nextChar();
 			  }
@@ -308,7 +311,7 @@ public class IOH {
 	  }
 	  
 	  public void errorCursor(  ) {
-		  OutputH.errorCursor(iLine);
+		  OutputH.errorCursor(line,iLine);
 	}
 
 	  public void error( Exc e ) {

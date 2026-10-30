@@ -23,9 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package exec;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,6 +38,7 @@ import java.util.Random;
 import error.Exc;
 import error.Exc_Assembler;
 import error.Exc_Exec;
+import error.Exc_Synt;
 import error.Exc.ErrorType;
 import exec.Instruction.Operator;
 
@@ -51,52 +54,61 @@ import java.util.Date;
 public class Exec {
 	
 	static  Scanner reader = new Scanner(System.in);
+	static BufferedReader breader = new BufferedReader(new InputStreamReader(System.in));
 
-	static private Instruction IR, IRF;
+	static private Instruction IR;
 	static final int nullValue = 0; // it must be equal to the value of null
-	static final int deletedNullValue = -1; // used to mark a deleted list element (<-1, NullT>) or json element (<-1,FielddT>)
-	static int 	nClops; // number of instructions executed by the current exec
+	static final int deletedNullValue = -1; // used to mark a deleted list element (<-1, NullT>) or json element (<-1,FieldT>)
+	static long	nClops; // number of instructions executed by the current exec
 	static  int CS = 32000; // size of Code Array
 	static  int MS = 64000; // size of Memory Array
 	static  int OS = 16000; // size of Output Array
     static  double [] MEM; // Memory Array
     static  double [] OUTPUT; // Output Array
     static Instruction [] CODE; // Code Array
+	static int CODEN;	// Number of instructions in CODE
     static boolean [] BREAKPOINTS;
+    // costs of math functions in terms of clops
     static int cexp = 200; // cost of exp in clops
     static int clog = 200; // cost of log in clops
     static int cpow = 200; // cost of pow in clops
     static int crand = 200; // cost of rand in clops
     static int crem = 100; // cost of reminder in clops
-	static int IP; 		// Instruction Pointer (Address of Next Instruction) 
+    // Basic Registers
+	static int IP; 		// Instruction Pointer (Address of Next Instruction in CODE) 
 	static int FP; 		// Frame Pointer (Start Address of the current frame)
 	static int SP; 		// Stack Pointer (Address of the element on top in the stack)
-	static int OP;  		// Output Pointer (Address of the first free element in the output)
 	static int HP;		// Heap Pointer (Address of the first free element in the heap)
-	static int FFPP; 	// Pointer to the First Returned Function in the stored list 
+	static int OP;  	// Output Pointer (Address of the first free element in the output)
+	// Pointers to structures implemented in the heap
+	static int GP; 		// Pointer to the garbage list of triplets
+	static int FUSTP; // Pointer to the top of the stack FuncStack of scheduled functions
+	static int FXPAP; 	// Pointer to the First Array of the chain of all External Parameter Array (for lambda within function)
+	static int LXPAP; 	// Pointer to the Last Array of the chain of all External Parameter Array (for lambda within function)
 	static int FSPP; 	// Pointer to the First String in the String Pool 
 	static int LSPP; 	// Pointer to the Last String in the String Pool
+	// working registers
 	static double WRD1; 	// an internal double register for computations 
 	static double WRD2; 	// a second internal double register for computations 
 	static int WRI1; 		// an internal integer register for computations
 	static int WRI2; 		// a second internal integer register for computations
 	static int WRI3; 		// a third internal integer register for computations
-	static int WRI4; 		// a fourth internal integer register reserved for deleting json/list elements
-	static int WRIL; 		// an integer register pointing to the start of a built lambda code
+	static int WRI4; 		// an fourth integer register, also reserved for deleting json/list elements
+	static int WRI5; 		// another integer register 
 	static long WRL1; 	// an internal long register for computations
 	static long WRL2; 	// a second long integer register for computations
 	static String WRS1; 	// a string register for computations (a bit unrealistic)
 	static String WRS2; 	// a second string register for computations (a bit unrealistic)
-	static int HPC;		// Pointer to the first available heap triplet (json element, list element, field value)
-	static int SPP; 		// current String Pool Pointer  
-	static int GP; 		// current pointer to the garbage list of triplets
+	// specialized registers 
+	static int CXPAP; 	// Pointer to Last parameter of an eXternal Parameter Array (for lambda within function)
+	static int HPC;		// Pointer to the first available heap triplet (from garbage if any or a new one)
 	static int NSPP; 	// Pointer to a New String being added to the String Pool  
-	static int CODEN;	// Number of instructions in CODE
+	// constant string error printout 
 	static String ov_MEM =" - check the program or eventually increase the memory size > "
 											+MS + " for Argument EXECMS";
 	// types
-	public static final int NoType=0;
-	public static final int DoubleT=1;
+	public static final int GenT=0; // generic type
+	public static final int DoubleT=1; 
 	public static final int LongT=2;
 	public static final int IntT=3;
 	public static final int CharT=4;
@@ -106,20 +118,13 @@ public class Exec {
 	public static final int ListT=8;
 	public static final int JsonT=9;
 	public static final int TypeT=10;
-	public static final int MetaTypeT=11;
-	public static final int RefT=12;
-	static final int FieldT=13;
-	public static final int FuncT=14;	
-	// print format for exc output (int or quoted string) and for quoting chars and string
-	// static final int IntExcF=13;
-	public static final int StringExcF=15;
-	static final int CharQF = 16; 
-	static final int StringQF=17;
-	static final int NullQF=18;
-	static final int ListIndentAllF=19;
-	static final int JsonIndentAllF=20;
-	static final int ListIndent1F=21;
-	static final int JsonIndent1F=22;
+	public static final int FuncT=11;
+	public static final int LabT=12;
+	static final int FieldT=13;	
+	public static final int RefT=14; // MEM (STACK+HEAP) reference
+	public static final int GnumT=15; // generic numeric
+	public static final int GsljT=16; // generic string or list or json
+	public static final int GslT=17; // generic string or list
 	
 	static final int maxChar = Character.MAX_VALUE;
 	static final int maxInt = Integer.MAX_VALUE;
@@ -134,9 +139,9 @@ public class Exec {
 	public static String fileExecName = "_CalcuList_fileExecF_";
 	
 	public static final String[] types = {
-		"no type" ,		// types[0]
+		"generic" ,		// types[0]
 		"double" ,		// types[1]
-		"long" ,			// types[2]
+		"long" ,		// types[2]
 		"int" ,			// types[3]
 		"char" ,		// types[4]
 		"bool" ,		// types[5]
@@ -145,21 +150,37 @@ public class Exec {
 		"list",			// types[8]	
 		"json",			// types[9]	
 		"type", 		// types[10]	
-		"metatype", 	// types[11]	
-		"ref" ,			// types[12]
+		"funct", 		// types[11]	
+		"label", 		// types[12]	
 		"field",		// types[13]	
-		"funct", 		// types[14]	
-		"string exc",	// types[15]	
-		"quoted char", 	// types[16]	
-		"quoted string", // types[17]	
-		"printable null", 	// types[18]	
-		"formatted list", 	// types[19]	
-		"formatted json", 	// types[20]	
-		"1-level formatted list", 	// types[21]	
-		"1-level formatted json" 	// types[22]	
-	};
-	
-	public static int nExecMicroInstrs(  ) {
+		"ref" ,			// types[14]
+		"generic(numeric)" ,	  // types[15]
+		"generic(string/list/json)", // types[16]
+		"generic(string/list)" // types[17]
+		};
+
+	public static final String[] typesT = {
+			"GenT" ,		// types[0]
+			"DoubleT" ,		// types[1]
+			"LongT" ,		// types[2]
+			"IntT" ,		// types[3]
+			"CharT" ,		// types[4]
+			"BoolT" ,		// types[5]
+			"NullT", 		// types[6]	
+			"StringT" ,		// types[7]
+			"ListT",		// types[8]	
+			"JsonT",		// types[9]	
+			"TypeT", 		// types[10]	
+			"FunctT", 		// types[11]	
+			"LabelT", 		// types[12]	
+			"FieldT",		// types[13]	
+			"RefT" ,		// types[14]
+			"GnumT" ,		// types[15]
+			"GsljT" ,		// types[15]
+			"GslT" ,		// types[16]
+			};
+
+	public static long nExecMicroInstrs(  ) {
 		return nClops;
 	}
 
@@ -216,11 +237,24 @@ public class Exec {
 			throw new Exc_Exec(ErrorType.WRONG_ADDRESS, " to CODE");
 	}
 
+	public static int getPLXARG() {
+		return CXPAP;
+	}
+	
+	
+//	public static int getFSTART() {
+//		return FSTARTP;
+//	}
+
 	public static void modInstruction ( int i, Instruction instr ) throws Exc{
 		if ( i >= 0 && i < CS )
 			CODE[i]=instr;
 		else
 			throw new Exc_Exec(ErrorType.WRONG_ADDRESS, " to CODE");
+	}
+	
+	public static double getMEM( int i ) {
+		return MEM[i];
 	}
 	
 	public static double valGV( int i ) {
@@ -236,7 +270,7 @@ public class Exec {
 	}
 
 	static String typeName( int i ) {
-		if ( i >= DoubleT && i <= NullQF )
+		if ( i >= DoubleT && i <= RefT )
 			return types[i];
 		else
 			return "? (Code = "+i+")";
@@ -461,23 +495,6 @@ public class Exec {
 				throw new Exc_Exec(ErrorType.EXEC_FAILURE, e.getMessage()+" - IP = "+IP);
 			}
 	}
-
-	static void appendCharToString(String Instr) throws Exc {
-		try {
-			addString1(Instr);
-	    	if ( SP >= HP   ) // 1 clop
-        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,Instr+ov_MEM);
-			MEM[HP]= MEM[SP]; // 2 clops
-			HP--; // 1 clop
-	    	nClops +=4;
-	    	endAddString(Instr);
-		}   catch ( Exc e ) {
-				throw e; 
-			}
-			catch ( Exception e ) {
-				throw new Exc_Exec(ErrorType.EXEC_FAILURE, e.getMessage()+" - IP = "+IP);
-			}
-	}
 	
 	static void callSTRINGEL() throws Exc{
 		SP--; // 1 clop
@@ -637,37 +654,48 @@ public class Exec {
 	
 	static void callDelHeapTriplet() throws Exc {
 		MEM[WRI2]=nullValue; // 1 clop
-		MEM[WRI2-1]= NoType; // 2 clops
+		MEM[WRI2-1]= GenT; // 2 clops
 		MEM[WRI2-2]=GP; // 2 clops
 		GP=WRI2; // 1 clop
 		nClops+=6; // including while check
 	}
 	
 	static void callNullify() throws Exc {
-	    	if ( MEM[SP] < DoubleT || MEM[SP] > MetaTypeT ) // 3 clops
+	    	if ( MEM[SP] < DoubleT || MEM[SP] > TypeT ) // 3 clops
 	    		throw new Exc_Exec(ErrorType.NULLIFY_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
 	    	nClops+=6; // including next check
+	    	// deleted (logically) - removed (also physically)
 	    	if ( MEM[SP] == JsonT || MEM[SP] == ListT ) { // 3 clops
-	    			WRI1=(int)MEM[SP-1]; // 2 clops
+	    			WRI1=(int)MEM[SP-1]; // 2 clops -- address triplet to be deleted
 	    			nClops+=7; // including next if check
 	    			if ( MEM[WRI1-1] == FieldT && MEM[WRI1]==nullValue )  { // 5 clops
 	    				// initial null field for a json
 	    				WRI2=(int)MEM[WRI1-2]; // 2 clops
-	    				MEM[WRI1-2]= nullValue; // 2 clops
-	    				WRI1=WRI2; // 1 clop
+	    				MEM[WRI1-2]= nullValue; //** set end of json 2 clops
+	    				WRI1=WRI2; // 1 clop // next field to be removed
 	    				nClops+=5;
 	    			}
 	    			nClops++; // last while check
 	    			while ( WRI1 != nullValue ) { // 1 clop
-	    				if ( MEM[WRI1-1] == FieldT && MEM[WRI1]!=nullValue )  { // 5 clops
-	    					WRI2= (int) MEM[WRI1]; // 1 clop
+	    				if ( MEM[WRI1-1] == FieldT   )  { // 2 clops
+	    					WRI2= (int) MEM[WRI1]; // 1 clop -- address delenda triplet
 	        				callDelHeapTriplet(); // delete key-value triplet
 	        				nClops++;
 	    				}
-	    				WRI2=WRI1; // 1 clop
-	    				WRI1 = (int) MEM[WRI2-2]; // 2 clops
-	    				callDelHeapTriplet();
-	    				nClops+=9; // including while check
+	    				nClops+=3;
+	    				if ( MEM[WRI1-1] == FieldT ) { // 2 clops
+		    				WRI2=WRI1; // 1 clop -- address delenda triplet
+		    				WRI1 = (int) MEM[WRI2-2]; // 2 clops -- next field
+		    				callDelHeapTriplet(); // delete field triplet
+		    				nClops+=3;    					
+	    				}
+	    				else { // logical deletion 
+	    					MEM[WRI1]= deletedNullValue; // 1 clop	    					
+	    					MEM[WRI1-1]= NullT; // 2 clops
+		    				WRI1 = (int) MEM[WRI1-2]; // 2 clops
+	    					nClops+=5;
+	    				}
+	    				nClops+=2; // includes if check
 	    			}
 	    	}	
 	}
@@ -725,9 +753,9 @@ public class Exec {
 	    		nClops++;
 	    	}
 	    	else {
-	    		WRI1 = (int) MEM[SP-1]; // 2 clops
-	    		MEM[SP-1] = MEM[WRI1]; // 3 clops
-	    		MEM[SP] = MEM[WRI1-1]; // 3 clops
+	    		WRI1 = (int) MEM[SP-1]; // 2 clops -- address of key-value triplet
+	    		MEM[SP-1] = MEM[WRI1]; // 3 clops -- value
+	    		MEM[SP] = MEM[WRI1-1]; // 3 clops -- type
 	    		nClops+=8;
 	    	}		
 	}
@@ -740,6 +768,8 @@ public class Exec {
 		SP--; // 1 clop
 		WRI1 = (int) MEM[SP-1]; // 2 clops
 		WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+		if ( WRI4==deletedNullValue )
+			throw new Exc_Exec(ErrorType.JSON_DELETED);
 		callSkipDeletedNulls();
 		MEM[SP-1] = nullValue; // null value - 2 clops
 		nClops += 14; // including last while check
@@ -762,11 +792,13 @@ public class Exec {
 	}
 	
 	static void callFLDFIND1(String Instr) throws Exc {
-	    	if ( MEM[SP] != StringT ) // 2 clops
+	    if ( MEM[SP] != StringT ) // 2 clops
 	    		throw new Exc_Exec(ErrorType.STRING_EXPECTED," - found type '"+typeName((int)MEM[SP])+"'");
 		WRI1 = (int) MEM[SP-3]; // 2 clops
 		WRI3=WRI1;
 		WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+		if ( WRI4==deletedNullValue )
+			throw new Exc_Exec(ErrorType.JSON_DELETED);
 		callSkipDeletedNulls();
 		nClops += 7; // including last while check
 		while ( WRI4 != nullValue ) { // 1 clop
@@ -796,7 +828,7 @@ public class Exec {
 	    	MEM[SP] = NullT; // 1 clop
 	    	callNEWFLD(Instr);
 	    	WRI1 = (int) MEM[SP-1]; // 2 clops
-	    	callCLIST(Instr);
+	    	addTriplet(Instr);
 	    	MEM[SP-1]=WRI1; // 2 clops
 		MEM[SP] = FieldT; // 1 clop
 	    	nClops+=16;
@@ -837,15 +869,22 @@ public class Exec {
 		nClops +=10;		
 	}
 	
-	static void callCLIST(String Instr) throws Exc {
+	static void addTriplet(String Instr) throws Exc {
+		// STACK: ..., AD, elemV,elemT
+		// triplet T0 <elem0V,elem0T,next0> pointed by AD 
+		// next0 = MEM[AD]-2 
         callGetHeapTriplet(Instr);		
-        MEM[HPC-1] = MEM[SP]; // 3 clops
+		// a new triplet T starts at address HPC 
+        // T= < elemV, elemT, next> 
+        MEM[HPC-1] = MEM[SP]; // 3 clops -- elemT
         SP--; // 1 clop
-        MEM[HPC] = MEM[SP]; // 2 clops
+        MEM[HPC] = MEM[SP]; // 2 clops -- elemV
         SP--; // 1 clop
-        MEM[(int)MEM[SP]-2]= HPC; // 3 clops
-        MEM[SP]= HPC; // 1 clops
-		nClops +=11;	
+        MEM[HPC-2]=nullValue; // 2 clops -- next
+        MEM[(int)MEM[SP]-2]= HPC; // 3 clops -- next0=HPC
+        MEM[SP]= HPC; // 1 clops // pointer to T
+        // STACK: .... HPC -- AD->HPC and elemV,elemT removed
+		nClops +=13;	
 	}
 	
 	static void callJSTOLIST1(String Instr) throws Exc {
@@ -868,7 +907,7 @@ public class Exec {
 		WRI2--; // 1 clop 
 		SP++; // 1 clop
 		MEM[SP] = MEM[WRI2]; // 2 clops
-		callCLIST(Instr);
+		addTriplet(Instr);
 		MEM[SP]=ListT; // 1 clop	
 		nClops+=23;
 	}
@@ -876,6 +915,8 @@ public class Exec {
 	static void callJSTOLIST(String Instr) throws Exc {
 		WRI1 = (int) MEM[SP-1]; // 1 clop
 		WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+		if ( WRI4==deletedNullValue )
+			throw new Exc_Exec(ErrorType.JSON_DELETED);
 		callSkipDeletedNulls();
     	MEM[SP-1] = nullValue; // 2 clops
     	MEM[SP] = nullValue; // 1 clop
@@ -889,7 +930,7 @@ public class Exec {
 		}
 		while ( WRI4 != nullValue ) { // 1 clop
   			callJSTOLIST1(Instr); 
-  			callCLIST(Instr);
+  			addTriplet(Instr);
 			WRI4 = (int) MEM[WRI4-2]; // 2 clops
 	        nClops +=2;		
 			callSkipDeletedNulls();
@@ -908,9 +949,13 @@ public class Exec {
     	callHLIST(Instr);		
 	}
 	
+	static boolean isNumeric(int t) {
+		return t>=DoubleT && t <=CharT; // 2 clops
+	}
+	
 	static void callEQ() throws Exc {
     	nClops+=5; // next check
-    	if ( MEM[SP] <= CharT && MEM[SP+2] <= CharT  ) { // 5 clops
+    	if ( isNumeric((int)MEM[SP])  && isNumeric((int)MEM[SP+2])  ) { // 5 clops
     		nClops+=2; // next check
     		if ( MEM[SP]==LongT ) { // 2 clops
     			if ( MEM[SP+2] == LongT) { // 3 clops
@@ -919,7 +964,7 @@ public class Exec {
     			}
     			else 
     				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) == 
-					MEM[SP+1]? 1: 0; // 6 clops;
+    						MEM[SP+1]? 1: 0; // 6 clops;
     			nClops+=	9;		
     		}
     		else {
@@ -933,12 +978,28 @@ public class Exec {
     		}
     	}
     	else {
-    		if ( MEM[SP]==MEM[SP+2] || MEM[SP] == NullT  || MEM[SP+2] == NullT 
-    				|| (MEM[SP]==TypeT&&MEM[SP+2]==MetaTypeT) 
-    				|| (MEM[SP+2]==TypeT&&MEM[SP]==MetaTypeT) ) // 9 clops
+    		if ( MEM[SP]==MEM[SP+2] || MEM[SP] == NullT  || MEM[SP+2] == NullT ) 
+    		{ // 9 clops
+    			nClops+=2; // next if condition
+    			if ( MEM[SP]== ListT ) { // 2 clops -- recognize empty list with nullified elements
+    		    	WRI4=(int)MEM[SP-1]; // 2 clops
+    		    	callSkipDeletedNulls();
+    		     	if ( WRI4 == nullValue ) // 1 clop
+    		     		MEM[SP-1]= nullValue; // 2 clops
+    		     	nClops+=5;
+    			}
+    			nClops+=2; // next if condition
+    			if ( MEM[SP+2]== ListT ) { // 2 clops -- recognize empty list with nullified elements
+    		    	WRI4=(int)MEM[SP+1]; // 2 clops
+    		    	callSkipDeletedNulls();
+    		     	if ( WRI4 == nullValue ) // 1 clop
+    		     		MEM[SP+1]= nullValue; // 2 clops				
+    		     	nClops+=5;
+    			}
     			WRI1= MEM[SP-1]==MEM[SP+1] && MEM[SP] == MEM[SP+2]? 1: 0; // 8 clops
+    		}
     		else
-        		throw new Exc_Exec(ErrorType.EQ_NOT_SUPPORTED,
+        		throw new Exc_Exec(ErrorType.EQ_NEQ_UNSUPP,
         				" for types '"+typeName((int)MEM[SP])+
         				"' and '"+typeName((int)MEM[SP+2])+"'");		        			
     		nClops+=17;
@@ -948,90 +1009,76 @@ public class Exec {
 	}
 	
 	static void callLT() throws Exc {
-		nClops+=5; // next check
-    	if ( MEM[SP] == NullT || MEM[SP+2] == NullT ) { // 5 clops
-    		WRI1= 0; // 1 clop
-    		nClops++;
+    	nClops+=6; // next check
+    	if ( MEM[SP+2]==StringT ) { // 3 clops
+        	MEM[SP]=MEM[SP+1]; // 3 clops
+    		compareString();
+    		if ( MEM[SP] == -1 ) // 2 clops
+    			WRI1=1; // 1 clop
+    		else
+    			WRI1=0; // 1 clop
+    		SP++; // 1 clop
+    		nClops+=6;
     	}
     	else {
-        	nClops+=6; // next check
-        	if ( MEM[SP+2]==StringT ) { // 3 clops
-            	MEM[SP]=MEM[SP+1]; // 3 clops
-        		compareString();
-        		if ( MEM[SP] == -1 ) // 2 clops
-        			WRI1=1; // 1 clop
-        		else
-        			WRI1=0; // 1 clop
-        		SP++; // 1 clop
-        		nClops+=6;
-        	}
-        	else {
-        		nClops+=2;
-	    		if ( MEM[SP]==LongT ) { // 2 clops
-	    			if ( MEM[SP+2] == LongT) { // 3 clops
-	    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) < 
-	    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
-	    			}
-	    			else 
-	    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) < 
-						MEM[SP+1]? 1: 0; // 6 clops;
-	    			nClops+=	9;		
-	    		}
-	    		else {
-	    			if ( MEM[SP+2] == LongT) { // 3 clops
-	    				WRI1 = MEM[SP-1] < 
-	    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
-	    			}
-	    			else 
-	    				WRI1 = MEM[SP-1] < MEM[SP+1]? 1: 0; // 6 clops;
-	    			nClops+=	9;		
-	    		}
-        	}
+    		nClops+=2;
+    		if ( MEM[SP]==LongT ) { // 2 clops
+    			if ( MEM[SP+2] == LongT) { // 3 clops
+    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) < 
+    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
+    			}
+    			else 
+    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) < 
+					MEM[SP+1]? 1: 0; // 6 clops;
+    			nClops+=	9;		
+    		}
+    		else {
+    			if ( MEM[SP+2] == LongT) { // 3 clops
+    				WRI1 = MEM[SP-1] < 
+    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
+    			}
+    			else 
+    				WRI1 = MEM[SP-1] < MEM[SP+1]? 1: 0; // 6 clops;
+    			nClops+=	9;		
+    		}
     	}
         MEM[SP]=BoolT; // 1 clop
 		nClops ++;
 	}
 
 	static void callLTE() throws Exc {
-		nClops+=5; // next check
-    	if ( MEM[SP] == NullT || MEM[SP+2] == NullT ) { // 5 clops
-    		WRI1= MEM[SP] == MEM[SP+2]?1: 0; // 5 clops
-    		nClops+=5;
+    	nClops+=6; // next check
+    	if ( MEM[SP+2]==StringT ) { // 3 clops
+        	MEM[SP]=MEM[SP+1]; // 3 clops
+    		compareString();
+    		if ( MEM[SP] == 1 ) // 2 clops
+    			WRI1=0; // 1 clop
+    		else
+    			WRI1=1; // 1 clop
+    		SP++; // 1 clop
+    		nClops+=6;
     	}
     	else {
-        	nClops+=6; // next check
-        	if ( MEM[SP+2]==StringT ) { // 3 clops
-            	MEM[SP]=MEM[SP+1]; // 3 clops
-        		compareString();
-        		if ( MEM[SP] == 1 ) // 2 clops
-        			WRI1=0; // 1 clop
-        		else
-        			WRI1=1; // 1 clop
-        		SP++; // 1 clop
-        		nClops+=6;
-        	}
-        	else {
-        		nClops+=2;
-	    		if ( MEM[SP]==LongT ) { // 2 clops
-	    			if ( MEM[SP+2] == LongT) { // 3 clops
-	    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) <= 
-	    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
-	    			}
-	    			else 
-	    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) <= 
-						MEM[SP+1]? 1: 0; // 6 clops;
-	    			nClops+=	9;		
-	    		}
-	    		else {
-	    			if ( MEM[SP+2] == LongT) { // 3 clops
-	    				WRI1 = MEM[SP-1] <=
-	    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
-	    			}
-	    			else 
-	    				WRI1 = MEM[SP-1] <= MEM[SP+1]? 1: 0; // 6 clops;
-	    			nClops+=	9;		
-	    		}
-        	}
+    		nClops+=2;
+    		if ( MEM[SP]==LongT ) { // 2 clops
+    			if ( MEM[SP+2] == LongT) { // 3 clops
+    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) <= 
+    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
+    			}
+    			else 
+    				WRI1 = Double.doubleToRawLongBits(MEM[SP-1]) <= 
+					MEM[SP+1]? 1: 0; // 6 clops;
+    			nClops+=	9;		
+    		}
+    		else {
+    			if ( MEM[SP+2] == LongT) { // 3 clops
+    				WRI1 = MEM[SP-1] <=
+    						Double.doubleToRawLongBits(MEM[SP+1])? 1: 0; // 6 clops
+    			}
+    			else 
+    				WRI1 = MEM[SP-1] <= MEM[SP+1]? 1: 0; // 6 clops;
+    			nClops+=	9;		
+    		}
     	}
         MEM[SP]=BoolT; // 1 clop
 		nClops ++;
@@ -1040,6 +1087,8 @@ public class Exec {
 	static void callCJSON(String Instr) throws Exc {
     	WRI1 = (int) MEM[SP-3]; // json first element - 2 clops
     	WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+    	if ( WRI4==deletedNullValue )
+    		throw new Exc_Exec(ErrorType.JSON_DELETED);
 		callSkipDeletedNulls();
     	WRI2 = (int) MEM[SP-1]; // field to be added - 2 clops
     	WRI2 = (int) MEM[WRI2-2]; // key of the field to be added - 2 clops
@@ -1062,12 +1111,14 @@ public class Exec {
     					PrintOutput.getStringHeap(-WRI2)+"'"); 
     					// negative address for the string (key) into a field	
      					// trick used for the debugger
-    	callCLIST(Instr);		
+    	addTriplet(Instr);		
 	}
 
 	static void callJSCLONE(String Instr) throws Exc {
 		WRI1 = (int) MEM[SP-1]; // 1 clop
 		WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+		if ( WRI4==deletedNullValue )
+			throw new Exc_Exec(ErrorType.JSON_DELETED);
 		callSkipDeletedNulls();
 		SP-=2; // 2 clops
 		callSJLIST(Instr);
@@ -1089,7 +1140,7 @@ public class Exec {
 			WRI4 = (int) MEM[WRI4-2]; // 2 clops
 			callSkipDeletedNulls();
 	        nClops +=20; // including while check
-	        callCLIST(Instr);
+	        addTriplet(Instr);
 		};
 		nClops++; // 1 clop for last while check
 		MEM[SP]=JsonT; // 1 clop
@@ -1208,33 +1259,72 @@ public class Exec {
 	     	nClops++;
 		}
 	}
-	
-	static void callBuilds() throws Exc {
-		if (CODEN + 2*WRI1 +4 >= CS) // 4 clops
-			throw new Exc_Exec(ErrorType.LARGE_CODE, " Internal: increase the size of CODE in Exec > "
-					+CODEN + " for Argument EXECCS");
-    	IRF=CODE[(int) WRD1]; // 1 clop
-     	WRI4= (int) IRF.getOperand(); // 1 clop		        	
-		CODE[CODEN]=new Instruction(Operator.START,WRI4,"* Run Time Function calling Lambda -> "+(int)MEM[SP-1]); // 2 clops
-		CODEN++; // 1 clop
-		WRI4 = FP-2*WRI1; // 2 clops
-		nClops += 8; // including last while check
-		while ( WRI4 < FP ) { // 1 clop
-			CODE[CODEN]=new Instruction(Operator.PUSHV,MEM[WRI4]); // 4 clops
-			CODEN++; // 1 clop
-			WRI4++; // 1 clop
-			nClops += 7;
+
+	public static void removeXAAC() throws Exc {
+			removeXAAC(FXPAP);
+	}
+
+	static void removeXAAC( int fXAACP ) throws Exc {
+		if( fXAACP != nullValue ) { 
+	    	WRI2= fXAACP; // start address of the current External Argument Array
+	    	fXAACP=(int)MEM[WRI2-1]; // address of the next External Argument Array 
+		    WRI1=(int)MEM[WRI2]; // length of current External Argument Array	        	
+		    WRI1=WRI2-WRI1; // end address of the current External Argument Array
+		    while (WRI2>WRI1) { 
+	        	callDelHeapTriplet(); // delete the triplet at the address WRI2
+		    	WRI2-=3; // next triplet 
+		    }
+			removeXAAC(fXAACP);
 		}
-		CODE[CODEN]=new Instruction(Operator.PUSHARG,WRI2); // 2 clops
-		CODEN++; // 1 clop
-		CODE[CODEN]=new Instruction(Operator.CALL,WRD1,"-> lambda function"); // 3 clops
-		CODEN++; // 1 clop
-		CODE[CODEN]=new Instruction(Operator.RETURN,WRI2); // 3 clops	
-		CODEN++; // 1 clop
-		nClops += 11;
+	}
+
+
+	private static String opStr( Instruction.Operator op) {
+		return Instruction.getOperatorString(op);
+	}
+
+	private static void writeFI (BufferedWriter outputExecF, String st) throws Exc {
+		try {
+			outputExecF.write(st+"\n");
+		}
+		catch ( Exception e) {
+    	 		throw new Exc_Synt(ErrorType.WRONG_EXEC_FILE, Exec.fileExecName+": unexpected error");			
+		}
 	}
 	
-	static void execF (boolean debugAct, int IPC) throws Exc{ // execute code from text file
+
+	static void readLine () throws Exc{ // interactive read of a line 
+		String command="";
+		try {
+			command = breader.readLine();
+		}
+		catch (Exception e) {
+			// no exception should arise
+		}
+	 	 BufferedWriter outputExecF=null;
+         File file = new File(fileExecName);
+         try {
+        	 	outputExecF = new BufferedWriter(new FileWriter(file));
+         } 
+         catch (Exception e) {
+        	 	throw new Exc_Exec(ErrorType.WRONG_EXEC_FILE, fileExecName+": unexpected error while opening");
+         }	 	 
+		 writeFI(outputExecF, opStr(Operator.SSTRING)+" "+0);
+		 for ( int i =0; i <command.length(); i++ ) {
+			 writeFI(outputExecF, opStr(Operator.PUSHC)+" "+(int)command.charAt(i));
+			 writeFI(outputExecF, opStr(Operator.CSTRING)+" "+0);
+		 }
+		 writeFI(outputExecF, opStr(Operator.ESTRING)+" "+0);
+         try {
+     	 	outputExecF.close();
+         } 
+         catch (Exception e) {
+     	 	throw new Exc_Exec(ErrorType.WRONG_EXEC_FILE, fileExecName+": unexpected error while closing");
+     	 }
+	}
+
+	static void execF (boolean debugAct, int IPC) throws Exc{ 
+			// execute code stored into text file
 			File file;
 			FileInputStream fstream;
 			try {
@@ -1268,13 +1358,14 @@ public class Exec {
 
 	
 	public static void exec( boolean debugAct, int nC) throws Exc {
-		CODEN = nC;
-		IP = 0; OP=0; 
-		if (NSPP != nullValue) {
+		CODEN = nC; // number of code instructions
+		IP = 0; // initial code instruction pointer 
+		OP=0; //  initial output pointer
+		if (NSPP != nullValue) { //  incomplete string
 			HP = NSPP;
 			NSPP=nullValue;
 		}
-		nClops = 0;
+		nClops = 0; // initialize number of clops
 		if ( debugAct )  Debug.debugStart();
 	
 		try {
@@ -1287,7 +1378,7 @@ public class Exec {
 				  IR = CODE[IP]; // 1 clop
 				  IP++; // next IP, 1 clop
 				  nClops +=3;
-				  debugAct=exec1(debugAct,IR,IPC);
+				  debugAct=exec1(debugAct,IR,IPC); // exec one instruction
 			}
 		} catch (Exc e) {
 			e.addMessage(" - IP ="+IP);
@@ -1299,7 +1390,7 @@ public class Exec {
 	}
 		
 		static boolean exec1(boolean debugAct, Instruction IR, int IPC) throws Exc{
-			      		      
+			// exec one instruction
 			try {
 			      switch (IR.getOperator()) {
 			        case INIT: // start an execution unit
@@ -1308,13 +1399,11 @@ public class Exec {
 			        	SP = 2*WRI1-1; // 2 clops
 			        	if (SP >= HP ) // 1 clops
 			        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"START "+ov_MEM);
-			        	if (FFPP != nullValue ) { // 1 clop
-			        		callNullify();
-			        		FFPP = nullValue; // 1 clop
-			        		nClops++;
-			        	}
+		        		FUSTP = nullValue; // 1 clop - pointer to the stack FuncStack of function calls
+		        		CXPAP= nullValue; // 1 clop - pointer to the type cell of last argument of current External Argument Array (for lambda within function)
+		    			FXPAP = LXPAP = nullValue; // 2 clops - first and last pointer to the chain of External Argument Array 
 			        	if ( debugAct )  Debug.initFrame(WRI1);
-					nClops +=6;
+			        	nClops +=9;
 			        	break;
 		        	
 		        case HALT: // end an execution unit
@@ -1332,12 +1421,32 @@ public class Exec {
 			        if ( debugAct )  Debug.addFrame(FP);
 					nClops +=4;
 		        	break;
-
+		        	
+		        case STARTX: // start the execution of a run-time built function calling a lambda
+		        			// the operand is the index of the called lambda function
+		        			// no operation performed - the operand will be used to print the function
+		        	break;
+		        	
+		        case LWRAP: // builds a run-time built function (wrapper) calling a lambda
+		        	WRI1= (int) IR.getOperand(); // 1 clop
+		        	if ( MEM[SP] != FuncT ) // 2 clops
+		        		throw new Exc_Exec(ErrorType.LWRAP_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
+		        	WRI2=CODEN; // 1 clop
+		        	CODE[CODEN]=new Instruction(Operator.STARTX,WRI1,IR.getComment()); // 3 clops ?
+		        	CODEN++; // 1 clop
+		        	CODE[CODEN]=new Instruction(Operator.SETXPAR,CXPAP); // 2 clops ?
+		        	CODEN++; // 1 clopFF
+		        	WRI1=(int) MEM[SP-1]; // 2 clops - address of lambda
+		        	CODE[CODEN]=new Instruction(Operator.JUMP,WRI1,"*->lambda"); // 3 clops ?
+		        	CODEN++; // 1 clop
+		        	MEM[SP-1]=WRI2; // 2 clops - replace address of lambda with that of built function
+		        	nClops+=19;
+		        	break;
+        	
 		        case ALLOC: // allocate space for local variables 
-        			// by setting up its frame and adding the link to the previous pointer 
 			        SP+=(int) IR.getOperand()*2; // 3 clops
 		        	if (SP >= HP ) // 1 clops
-		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"START "+ov_MEM);
+		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"ALLOC "+ov_MEM);
 					nClops +=4;
 		        	break;
 
@@ -1356,71 +1465,45 @@ public class Exec {
 		        	if ( debugAct )  Debug.removeFrame();
 		        	nClops +=15; 
 		        	break;
-
 		        case THROWE: // stop the execution by throwing an exception reported in two strings
 	       			 // that are written on OUTPUT
 		        	if ( MEM[SP] != StringT ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.THROWE_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
 		        	if ( MEM[SP-2] != StringT ) // 3 clops
 		        		throw new Exc_Exec(ErrorType.THROWE_NOT_SUPPORTED," for type "+typeName((int)MEM[SP-2]));
-				    if (OP+3 > OS ) // 2 clops
+				    if (OP+5 > OS ) // 2 clops
 				       	throw new Exc_Exec(ErrorType.OUTPUT_OVERFLOW, "Internal: increase the output size > "
 									+OS + " for Argument EXECOS");
 				    OUTPUT[OP]= MEM[SP-3]; // 3 clops 
 				    OP++; // 1 clop
-				    OUTPUT[OP]= StringExcF; // 1 clop 
+				    OUTPUT[OP]= StringT; // 1 clop - exception string
+				    OP++; // 1 clop
+				    OUTPUT[OP]= PrintOutput.prOptExc; // 1 clop - exception option
 				    OP++; // 1 clop
 				    OUTPUT[OP]= MEM[SP-1]; // 3 clops 
 				    OP++; // 1 clop
-				    OUTPUT[OP]= StringT; // 1 clop
+				    OUTPUT[OP]= StringT; // 1 clop - raising function name
 				    OP++; // 1 clop
-			       	IP=-1; // 1 clop
-					nClops +=20;
+				    OUTPUT[OP]= PrintOutput.prOptSt; // 1 clop - standard option
+				    OP++; // 1 clop			       	
+				    IP=-1; // 1 clop - end execution
+					nClops +=24;
 			       	break;
 
-		        case CALL:	// call the function whose code starts at the address 
-        			// denoted by the command operand
-        			// the frame of the called function is started on the stack
-        			// by storing the calling function return address
-		           	if (SP >= HP ) // 1 clops
-		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"CALL "+ov_MEM);
-		           	SP++; // 1 clop
-		           	MEM[SP] = IP; // 1 clop
-		           	IP = (int) IR.getOperand(); // 2 clops
-					nClops +=4;
-		           	break;
-		
-		        case CALLS:	 // call the function whose whose code starts at the address
+		        case CALL:	 // call the function whose whose code starts at the address
 		        			 // stored on top of the stack  
 							 //  which is afterward removed from the stack
 							// the frame of the called function is started on the stack
 							// by storing the calling function return address
-		        		if ( MEM[SP] != FuncT ) // 2 clops
-		        			throw new Exc_Exec(ErrorType.CALLS_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
+		        	if ( MEM[SP] != FuncT ) // 2 clops
+		        			throw new Exc_Exec(ErrorType.CALL_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
 		           	WRI1 = (int)MEM[SP-1];// 2 clops
 		           	SP--; // 1 clop
 		           	MEM[SP] = IP; // 1 clop
 		           	IP = WRI1; // 1 clop
 					nClops +=7;
 		           	break;	
-		           	
-		        case BUILDS: // builds a run time function calling the lambda function 
-		        				// whose code starts at the address stored on top of the stack
-		        				// The frame top is then replaced by the starting code address of the built function
-	        			if ( MEM[SP] != IntT ) // 2 clops
-	        				throw new Exc_Exec(ErrorType.BUILDS_NOT_SUPPORTED," for type "+typeName((int)MEM[SP])+" - expected 'int'");
-		        		SP--; // 1 clop
-	        			WRI1 = (int) MEM[SP]; // 1 clop
-		        		SP--; // 1 clop
-		        		if ( MEM[SP] != FuncT ) // 2 clops
-	        				throw new Exc_Exec(ErrorType.BUILDS_NOT_SUPPORTED," for type "+typeName((int)MEM[SP])+" - expected 'function'");
-		        		WRI2 = (int) IR.getOperand(); // 2 clops
-		        		WRI3 = CODEN; // 1 clop
-		        		WRD1 = MEM[SP-1]; // 2 clop
-		        		callBuilds();
-		        		MEM[SP-1]=WRI3; // 2 clops
-		        		nClops +=14;
-		        		break;
+		           		           	
 		        		
 		        case DUPL: // duplicate the stack head
 		        	if (SP +1 >= HP ) // 2 clops
@@ -1469,6 +1552,16 @@ public class Exec {
 					nClops +=7;
 		        	break;
 
+		        case PUSHLAB: // push a label index on top of the stack
+		        	if (SP +1 >= HP ) // 2 clops
+		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHI "+ov_MEM);
+		        	SP++; // 1 clop
+		        	MEM[SP] = IR.getOperand(); // 2 clops
+		        	SP++; // 1 clop
+		        	MEM[SP] = LabT; // 1 clop
+					nClops +=7;
+		        	break;
+
 		        case PUSHC: // push a character on top of the stack
 		        	if (SP +1 >= HP ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHC "+ov_MEM);
@@ -1499,22 +1592,14 @@ public class Exec {
 		        	MEM[SP] = IR.getOperand(); // 2 clops
 		        	SP++; // 1 clop
 		        	MEM[SP] = FuncT; // 1 clop
-				nClops +=7;
-		        	break;
-		        	
-		        case PUSHV: // push an untyped value on top of the stack
-		        	if (SP >= HP ) // 2 clops
-		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHF "+ov_MEM);
-		        	SP++; // 1 clop
-		        	MEM[SP] = IR.getOperand(); // 2 clops
-				nClops +=5;
+				    nClops +=7;
 		        	break;
 		        	
 		        case PUSHT: // push a listable type on top of the stack
 		        	if (SP +1 >= HP ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHT "+ov_MEM);
 		        	WRI1 = (int)IR.getOperand(); // 1 clop
-		        	if ( WRI1 < DoubleT || WRI1 >= TypeT   ) // 2 clops
+		        	if ( WRI1 < DoubleT || WRI1 > TypeT   ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.PUSHT_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])
 	        				+"'");
 		        	SP++; // 1 clop
@@ -1522,16 +1607,6 @@ public class Exec {
 		        	SP++; // 1 clop
 		        	MEM[SP] = TypeT; // 1 clop
 					nClops +=10;
-		        	break;
-		        	
-		        case PUSHMT: // push the metatype value "type" on top of the stack
-		        	if (SP +1 >= HP ) // 2 clops
-		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHMT "+ov_MEM);
-		        	SP++; // 1 clop
-		        	MEM[SP] = TypeT; // 1 clop
-		        	SP++; // 1 clop
-		        	MEM[SP] = MetaTypeT; // 1 clop
-					nClops +=6;
 		        	break;
 		        	
 		        case PUSHN: // push the null value on top of the stack
@@ -1543,29 +1618,84 @@ public class Exec {
 		        	MEM[SP] = NullT; // 1 clop
 					nClops +=6;
 		        	break;
-		        	
-		        case PUSHARG: // copy the k actual arguments of the current function unit 
-	        		// on top of the stack
-	        		// where k is the operand of the command
-		        	WRI1= (int) IR.getOperand()*2; // 2 clops
-		        	if (SP +WRI1 >= HP ) // 2 clops
-		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PUSHARG "+ov_MEM);
-		        	WRI1 = FP-WRI1; // 2 clops
-		        	nClops += 6;  
-		        	while ( WRI1 < FP ) { // 1 clop
-		        		SP++; // 1 clop
-		        		MEM[SP]= MEM[WRI1]; // 2 clops
-		        		WRI1++; // 1 clop
-		        		nClops += 5; // including while check
-		        	}
-				nClops++; // last while check	
+
+
+		        case GETXPAR: // gets the value of register CXPAP (pointer to external argument array in the frame of a lambda function)
+		        	// and stores it in the lambda function frame
+		        	if (SP+2 >= HP ) // 2 clops
+		        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"SETXPAR "+ov_MEM);
+		        	SP++; // 1 clop
+		        	MEM[SP]=CXPAP; // 1 clop
+		        	SP++; // 1 clop
+		        	MEM[SP]=RefT; // 1 clop
+		        	nClops +=6;
 		        	break;
 
+		        case SETXPAR: // store the operand into PLXARG -  set the value of the pointer to external argument array in the frame of a lambda function
+		        	// and stores it in the lambda function frame
+		        	WRI1 = (int)IR.getOperand(); // 1 clop
+		        	CXPAP=WRI1; // 1 clop
+		        	nClops +=2;
+		        	break;
+		        	
+		        case STOREXPAR: // store the External Argument Array of a lambda function within a function
+		        	// to enable the reuse of its triplets, the number of elements is multiple of 3 
+		        	// the address to the last parameter in the array is stored in the register PLXARG
+		        	WRI1 = (int)IR.getOperand()*2; // 2 clops
+					WRI4 = FP-WRI1; // 1 clop
+					if ( SP+1 >= HP   ) // 1 clop
+						throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"STOREARGF "+ov_MEM);
+					WRI1+=2; // 2 clops - 	size of the array including the pair (length, Next-External-Argument-Array)
+					WRI2= WRI1 % 3; // 2 clops - the whole array size must be multiple of 3 (triplets)
+					if (WRI2>0) { // 1 clop
+						WRI2=3-WRI2; // 2 clops
+						nClops+=3;
+					}
+					WRI3=HP; // 1 clop - start address of the External Argument Array
+					MEM[HP]=WRI1+WRI2; // 2 clops - array size including possible 1 or 2 remainders 
+					HP--; // 1 clop
+					MEM[HP]=nullValue; // 1 clop - end of the chain 
+					HP--; // 1 clop
+					nClops += 14; // including last while check
+					while ( WRI4 < FP ) { // 1 clop
+						if ( SP >= HP   ) // 1 clop
+							throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"STOREARGF "+ov_MEM);
+						MEM[HP]=MEM[WRI4]; // 2 clops
+						HP--; // 1 clop
+						WRI4++; // 1 clop
+						nClops += 6;
+					} // the arguments of external argument array are stored backward
+//***				PLPXPA=HP+1; // 2 clops - address of the last argument pair 
+					WRI4=0; // 1 clop
+//***				nClops+=4; // including last while check
+					nClops+=2; // including last while check
+					while ( WRI4 < WRI2 ) { // 1 clop
+						if ( SP >= HP   ) // 1 clop
+							throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"STOREARGF "+ov_MEM);
+						MEM[HP]=nullValue; // 2 clops
+						HP--; // 1 clop
+						WRI4++; // 1 clop
+						nClops += 6;
+					} // possible one or two remainders entries are set to null value
+					if ( FXPAP == nullValue ) { // 1 clop for the check
+					  	FXPAP=WRI3; // 1 clop - the new External Argument Array is the first in the chain
+					  	nClops++;
+					}
+					else {
+						MEM[LXPAP-1]=WRI3; // 3 clops - the last External Argument Array points to the new one
+						nClops+=3;
+					}
+					LXPAP=WRI3; // 1 clop - the new External Argument Array becomes the last in the chain				       					       						
+					CXPAP=WRI3; // 1 clop - and also the current one
+					nClops +=3;
+					break;
 
-		        case NULLIFY: // 1 integer instruction operand op: 0 or 1
+		        case NULLIFY: // 1 integer instruction operand op: 0 (global variable) or 1 (list or json element)
 		        	// replace the stack operand with a null value if op = 0 or a deleted null value if op = 1
-		        	// in both cases, if the operand is a list or a json, remove its elements
-		        	// (including the field values for a json) by adding them into the garbage list
+		        	// in both cases, if the stack operand is a list or a json, remove its elements
+		        	// (including the field key-value for a json) 
+		        	// deletion is virtual in general and is suitably marked by deleteNullValue
+		        	// deletion is physical for JSON: fields and pairs (key, value) are added to a garbage list
 		        	callNullify();
 		        	WRI1 = (int) IR.getOperand(); // 1 clop
 		        	if ( WRI1 == 0 ) // 1 clop
@@ -1576,33 +1706,33 @@ public class Exec {
 		        	nClops+=5;
 		        	break;
 
-		        case GETF: // get the head of FFPP list
-		        	if ( FFPP == nullValue ) // 1 clop
-		            		throw new Exc_Exec(ErrorType.EMPTY_LIST," - unexpected error: head element of FFPP list is missing");
+		        case GETF: // get the top of FuncStack
+		        	if ( FUSTP == nullValue ) // 1 clop
+		            		throw new Exc_Exec(ErrorType.EMPTY_FUNCSTACK," - unexpected error: FuncStack of function addresses is empty");
 		        	if (SP +1 >= HP ) // 2 clops
 		        		    throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"GETF ");
 		        	SP++; // 1 clop
-		        	MEM[SP] = MEM[FFPP]; // 1 clop
+		        	MEM[SP] = MEM[FUSTP]; // 2 clops
 		        	SP++; // 1 clop
 		        	MEM[SP] = FuncT; // 1 clop
-		        	WRI2 = FFPP; // 1 clop
-		        	FFPP = (int) MEM[WRI2-2]; // 2 clops
-		        	nClops +=10;
+		        	WRI2 = FUSTP; // 1 clop
+		        	FUSTP = (int) MEM[WRI2-2]; // 2 clops
+		        	nClops +=11;
 		        	callDelHeapTriplet();
 		        	break;
 		        	
-		        case STOREF: // store a function pointer as the head of FFPP list
-		        	callGetHeapTriplet("STOREF ");		
-		            MEM[HPC-1] = MEM[SP]; // 3 clops
+		        case STOREF: // store a function pointer as the head of LRFP list
+		        	callGetHeapTriplet("STOREF ");	
+		            MEM[HPC-1] = MEM[SP]; // 2 clops
 		            SP--; // 1 clop
 		            MEM[HPC] = MEM[SP]; // 2 clops
-		            SP--; // 1 clop
-		        	if ( FFPP != nullValue ) { // 1 clop
-		        		MEM[HPC-2]=FFPP; // 2 clops
+		            SP--; // 1 clop 
+		        	if ( FUSTP != nullValue ) { // 1 clop
+		        		MEM[HPC-2]=FUSTP; // 2 clops
 		        		nClops +=2;
 		        	}
-		        	FFPP=HPC; // 1 clop
-		        	nClops +=8;
+		        	FUSTP=HPC; // 1 clop
+		        	nClops +=9;
 		        	break;
 		        	
 		        case LOADGV: // push the address of the i-th global variable on top of the stack,
@@ -1633,7 +1763,7 @@ public class Exec {
 					nClops +=10;
 		        	break;
 
-		        case LOADARG: // push the address of the i-th function argument on top of the stack,
+		        case LOADPAR: // push the address of the i-th function argument on top of the stack,
 					// where i is the operand of the command
         			// function arguments are stored in the reverse order they occur,
         			// at the end of the previous function frame 
@@ -1647,24 +1777,21 @@ public class Exec {
 		        	MEM[SP] = RefT; // 1 clops
 					nClops +=7;
 		        	break;
-
-		        case MOVEARG: // move the k actual arguments on top of the stack 
-		        		// into the arguments of the current function with tail recursion
-		        		// where k is the operand of the command
-		        	WRI2= (int) IR.getOperand(); // 1 clop
-		        	WRI1 = FP-1; // 1 clop
-		        	nClops += 2;  
-		        	while ( WRI2 > 0 ) { // 1 clop
-		        		MEM[WRI1] = MEM[SP]; // 2 clops
-		        		SP--; WRI1--; // 2 clops
-		        		MEM[WRI1] = MEM[SP]; // 2 clops
-		        		SP--; WRI1--; // 2 clops
-		        		WRI2--; // 1 clop 
-		        		nClops += 10; // including while check
-		        	}
-				nClops++; // last while check	
-		        	break;
-
+		        	
+		        case LOADXPAR: // push the address of the i-th external argument on top of the stack,
+		    		   // where i is the operand of the command
+		        	   // function arguments are stored into an array in the heap
+					if (SP+1  >= HP) // 2 clops
+					 	throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"LOADARGF "+ov_MEM);
+					SP++; // 1 clop
+					WRI1=(int)MEM[FP+2]; // 3 clops
+					MEM[SP] = WRI1-2*IR.getOperand(); // 4 clops
+					SP++; // 1 clop
+					MEM[SP] = RefT; // 1 clops
+					nClops +=12;
+					break;
+					
+					
 		        case DEREF: // replace a reference value with the referenced value stored in the stack
 		        	if ( MEM[SP] != RefT) // 2 clops
 		        		throw new Exc_Exec(ErrorType.DEREF_NOT_SUPPORTED," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
@@ -1674,9 +1801,18 @@ public class Exec {
 					nClops +=9;
 		        	break;
 		
+		        case DEREFX: // replace a reference value with the referenced value stored in the argument array in the heap
+		        	if ( MEM[SP] != RefT) // 2 clops
+		        		throw new Exc_Exec(ErrorType.DEREFX_NOT_SUPPORTED," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
+		        	WRI1 = (int)MEM[SP-1]; // 1 clop
+		        	MEM[SP-1] = MEM[WRI1]; // 3 clops
+		        	MEM[SP] = MEM[WRI1-1]; // 3 clops
+					nClops +=9;
+		        	break;
+		
+		
 		        case MODV: // modify a referenced value in the stack
-		        	if ( MEM[SP] < DoubleT || MEM[SP] > RefT ) // 2 clops
-//			        	if ( MEM[SP] < DoubleT || MEM[SP] > FuncT || MEM[SP] == FieldT ) // 2 clops
+		        	if ( MEM[SP] < DoubleT || MEM[SP] > TypeT ) // 2 clops
 		        		throw new Exc_Exec(ErrorType.MODV_NOT_SUPPORTED," - found type '"+typeName((int)MEM[SP-4])+"'");
 		        	SP--; SP--;// 2 clops
 		        	if ( MEM[SP] != RefT ) // 2 clops
@@ -1691,21 +1827,21 @@ public class Exec {
 		        case ADD: // add the two values on top of the stack
 		        		  // remove them from the stack and store the result on top of it
 		        	nClops +=7; // next check
-		        	if ( (MEM[SP] >= DoubleT && MEM[SP]<=CharT) && // 3 clops (assuming 2 clops for type checking)
-		        			(MEM[SP-2] >= DoubleT && MEM[SP-2]<=CharT ) ) {
+		        	if ( isNumeric((int) MEM[SP])  && // 3 clops (assuming 2 clops for type checking)
+		        			isNumeric((int) MEM[SP-2]) ) {
 		    	        SP-=2; // 1 clop
 		    	        nClops+=4; // including next check
-		        			if ( MEM[SP+2]>DoubleT ) { // 3 clops
-		            			if ( MEM[SP+2]>LongT ) // 3 clops
+		        			if ( MEM[SP+2]>DoubleT ) { // 3 clops -- not a double
+		            			if ( MEM[SP+2]>LongT ) // 3 clops -- non a long integer 
 		            				WRL1=(int)MEM[SP+1]; // 2 clops
-		            			else	 {	
+		            			else	 {	// long integer
 		            				WRL1=Double.doubleToRawLongBits(MEM[SP+1]); // 2 clops
 		            			}
 		            			nClops+=7; // including next check
-		    	        		if ( MEM[SP]>DoubleT ) { // 2 clops
-		    	        			if ( MEM[SP]>LongT) // 2 clops
+		    	        		if ( MEM[SP]>DoubleT ) { // 2 clops -- not a double
+		    	        			if ( MEM[SP]>LongT) // 2 clops -- not a long integer
 		    	        				WRL2=(int)MEM[SP-1]; // 2 clops
-		    	        			else {
+		    	        			else { //-- long integer
 		    	        				WRL2=Double.doubleToRawLongBits(MEM[SP-1]); // 2 clops
 		    	        			}
 		    	        			nClops+=4;
@@ -1749,6 +1885,10 @@ public class Exec {
 		    	        }
 		        		break;
 		        	}
+	        		throw new Exc_Exec(ErrorType.ADD_UNSUPP," for types '"+
+		        		types[(int)MEM[SP-2]]+"' and '"+typeName((int)MEM[SP])+"'");
+
+		        case ADDLS:
 		        	nClops+=4; // next check
 		        	if ( MEM[SP]==ListT && MEM[SP-2]==ListT) { // 4 clops
 		        		MEM[SP-2]=MEM[SP-1]; // 4 clops
@@ -1772,22 +1912,9 @@ public class Exec {
 		        		NSPP=nullValue; // 1 clop
 		        		nClops += 4; break;
 		        	}	
-		        	nClops+=5; // next check
-		        	if ( MEM[SP]==CharT && MEM[SP-2]==StringT) { // 5 clops
-		        		MEM[SP-2]=MEM[SP-1]; // 4 clops
-		        		SP -=2; // 2 clops
-		        		nClops +=6;
-		        		appendCharToString("ADD ");
-			        	if (SP  >= HP) // 1 clop
-			        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"ADD "+ov_MEM);
-		        		SP++; // 1 clop
-		        		MEM[SP]=StringT; // 1 clop
-		        		NSPP=nullValue; // 1 clop
-		        		nClops += 4; break;
-		        	}			        	
-	        		throw new Exc_Exec(ErrorType.ADD_NOT_SUPPORTED," for types '"+
+	        		throw new Exc_Exec(ErrorType.ADDLS_UNSUPP," for types '"+
 		        		types[(int)MEM[SP-2]]+"' and '"+typeName((int)MEM[SP])+"'");
-		
+		        	
 		        case SUB: // subtract the two values on top of the stack
 	        		  	  // remove them from the stack and store the result on top of it
 		        	nClops +=7; // next check
@@ -1837,7 +1964,7 @@ public class Exec {
 		    	        		nClops+=2; // next check
 		    	        		if (MEM[SP]==LongT) { // 2 clops
 		    	        			WRL1=Double.doubleToRawLongBits(MEM[SP-1]); // 2 clops
-		    	        			MEM[SP-1]=MEM[SP-1]-WRL1; // 5 clops
+		    	        			MEM[SP-1]=WRL1-MEM[SP+1]; // 5 clops
 		    	        			nClops+=7;
 		    	        		}
 		    	        		else {
@@ -1849,7 +1976,7 @@ public class Exec {
 		    	        } 
 		        		break;
 		        	}
-	        		throw new Exc_Exec(ErrorType.SUB_NOT_SUPPORTED," for types '"+
+	        		throw new Exc_Exec(ErrorType.SUB_UNSUPP," for types '"+
 			        		types[(int)MEM[SP-2]]+"' and '"+typeName((int)MEM[SP])+"'");
 		
 		        case MULT: // multiply the two values on top of the stack
@@ -1901,7 +2028,7 @@ public class Exec {
 		    	        		nClops+=2; // next check
 		    	        		if (MEM[SP]==LongT) { // 2 clops
 		    	        			WRL1=Double.doubleToRawLongBits(MEM[SP-1]); // 2 clops
-		    	        			MEM[SP-1]=MEM[SP-1]*WRL1; // 5 clops
+		    	        			MEM[SP-1]=MEM[SP+1]*WRL1; // 5 clops
 		    	        			nClops+=7;
 		    	        		}
 		    	        		else {
@@ -1913,7 +2040,7 @@ public class Exec {
 		    	        } 
 		        		break;		        	
 		        	}
-	        		throw new Exc_Exec(ErrorType.MULT_NOT_SUPPORTED," for types '"+
+	        		throw new Exc_Exec(ErrorType.MULT_UNSUPP," for types '"+
 			        		types[(int)MEM[SP-2]]+"' and '"+typeName((int)MEM[SP])+"'");
 		
 		        case DIV: // divide the two values on top of the stack
@@ -1933,13 +2060,13 @@ public class Exec {
 				    nClops +=16; 
 					break;
 		        	}
-	        		throw new Exc_Exec(ErrorType.DIV_NOT_SUPPORTED," for types '"+
+	        		throw new Exc_Exec(ErrorType.DIV_UNSUPP," for types '"+
 			        		types[(int)MEM[SP-2]]+"' and '"+typeName((int)MEM[SP])+"'");
 		
-		        case NEG: // change the sign to the typed value at the top of the stack
+		        case NEG: // change the sign to the numeric value at the top of the stack
 		        	nClops+=2; // next check
 		        	if ( MEM[SP] > CharT   ) // 2 clops
-		        		throw new Exc_Exec(ErrorType.NEG_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])
+		        		throw new Exc_Exec(ErrorType.NUM_EXPECTED," found type '"+typeName((int)MEM[SP])
 	        				+"'");
 		        	nClops+=2; // next check
 		        if ( MEM[SP] != LongT) { // 2 clops
@@ -1974,263 +2101,277 @@ public class Exec {
 		        }
 		        	break;
 		        	
-		        case TODOUBLE: // convert the value on top of the stack into a double
-		  	  		  // remove it from the stack and store the result on top of it
-		        	if ( MEM[SP] < DoubleT || (MEM[SP] > CharT ) ) // 4 clops
-		        		throw new Exc_Exec(ErrorType.TOLONG_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-			    nClops+=6; // including next check
-		        	if ( MEM[SP]!= DoubleT ) { // 2 clops
-			        	WRI1=SP-1; // 1 clop
-			        	nClops+=3; // including next check
-			        	if ( MEM[SP] == LongT ) { // 2 clops
-			        		WRL1= Double.doubleToRawLongBits(MEM[WRI1]); // 2 clops
-			        		MEM[WRI1]=WRL1; // 1 clop
-			        		nClops+=3;
-			        	}
-			        	MEM[SP] = DoubleT; // 1 clop
-					nClops ++;
-		        	}
-		        	break;
-		
-		        case TOINTL: // convert the double value on top of the stack into a long or int
+//		        case TOINTL: // convert the double value on top of the stack into a long or int
+//		        	if ( MEM[SP] != DoubleT )  // 2 clops
+//		        		throw new Exc_Exec(ErrorType.TOINTL_UNSUPP," for type '"+typeName((int)MEM[SP])+"' -- double expected");
+//			    WRI1=SP-1; // 1 clop
+//			    nClops+=6; // including next check
+//			    if ( MEM[WRI1]>=minInt && MEM[WRI1] <= maxInt ) { // 3 clops
+//		        		MEM[SP] = IntT; // 1 clop
+//		        		nClops ++;		    
+//			    }
+//			    else 
+//			        	if ( MEM[WRI1]<minLong || MEM[WRI1] >maxLong ) // 3 clops
+//			        		throw new Exc_Exec(ErrorType.TOINTL_UNSUPP," for value "+MEM[WRI1]);
+//			        	else {
+//			        		MEM[WRI1]=Double.longBitsToDouble((long)MEM[WRI1]); // 2 clops
+//				        	MEM[SP] = LongT; // 1 clop
+//			        	}
+//					nClops +=6;
+//		        	break;
+
+		        case TOINT: // convert the double value on top of the stack into an integer
 		        	if ( MEM[SP] != DoubleT )  // 2 clops
-		        		throw new Exc_Exec(ErrorType.TOINTL_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"' -- double expected");
-			    WRI1=SP-1; // 1 clop
-			    nClops+=6; // including next check
-			    if ( MEM[WRI1]>=minInt && MEM[WRI1] <= maxInt ) { // 3 clops
-		        		MEM[SP] = IntT; // 1 clop
-		        		nClops ++;		    
-			    }
-			    else 
-			        	if ( MEM[WRI1]<minLong || MEM[WRI1] >maxLong ) // 3 clops
-			        		throw new Exc_Exec(ErrorType.TOINTL_NOT_SUPPORTED," for value "+MEM[WRI1]);
-			        	else {
-			        		MEM[WRI1]=Double.longBitsToDouble((long)MEM[WRI1]); // 2 clops
-				        	MEM[SP] = LongT; // 1 clop
-			        	}
-					nClops +=6;
-		        	break;
-		
-		        case TOLONG: // convert the value on top of the stack into a long integer
-		  	  		  // remove it from the stack and store the result on top of it
-		        	if ( MEM[SP] < DoubleT || (MEM[SP] > CharT ) ) // 4 clops
-		        		throw new Exc_Exec(ErrorType.TOLONG_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-			    nClops+=6; // including next check
-		        	if ( MEM[SP]!= LongT ) { // 2 clops
-			        	WRI1=SP-1; // 1 clop
-			        	if ( MEM[WRI1]<minLong || MEM[WRI1] >maxLong ) // 3 clops
-			        		throw new Exc_Exec(ErrorType.TOLONG_NOT_SUPPORTED," for value "+MEM[WRI1]);
-			        	MEM[WRI1]=Double.longBitsToDouble((long)MEM[WRI1]); // 2 clops
-			        	MEM[SP] = LongT; // 1 clop
-					nClops +=7;
-		        	}
-		        	break;
-		
-		        case TOINT: // convert the value on top of the stack into an integer
-		  	  		  // remove it from the stack and store the result on top of it
-		        	if ( MEM[SP] < DoubleT || (MEM[SP] > CharT && MEM[SP]!=BoolT) ) // 6 clops
-		        		throw new Exc_Exec(ErrorType.TOINT_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        nClops+=8; // including next check
-		        	if ( MEM[SP]!= IntT ) { // 2 clops
-			        	WRI1=SP-1; // 1 clop
-			        nClops+=7; // including next check
-			        	if ( MEM[SP]==LongT ) { // 2 clops
-			        		WRL1 = Double.doubleToRawLongBits(MEM[WRI1]); // 1 clop
-				        	if ( WRL1<minInt || WRL1 >maxInt ) // 2 clops
-				        		throw new Exc_Exec(ErrorType.TOINT_NOT_SUPPORTED," for value "+WRL1+"L");
-				        	MEM[WRI1] = (int) WRL1;// 1 clop
-				        	nClops+=4;
-			        	}
-			        	else {
-				        	if ( MEM[WRI1]<minInt || MEM[WRI1] >maxInt ) // 2 clops
-				        		throw new Exc_Exec(ErrorType.TOINT_NOT_SUPPORTED," for value "+MEM[WRI1]);
-				        	MEM[WRI1] = (int) MEM[WRI1];// 2 clops 
-				        	nClops+=4;
-			        	}
-			        	MEM[SP] = IntT; // 1 clop
+		        		throw new Exc_Exec(ErrorType.TOINT_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+				    WRI1=SP-1; // 1 clop
+		        	nClops+=5; // including next check
+		            if ( MEM[WRI1]<minInt || MEM[WRI1] >maxInt ) // 2 clops
+				        		throw new Exc_Exec(ErrorType.TOINT_UNSUPP," for value "+MEM[WRI1]);
+				    MEM[WRI1] = (int) MEM[WRI1];// 2 clops 
+				    nClops+=2;
+			        MEM[SP] = IntT; // 1 clop
 					nClops++;
-		        }
-		        	break;
-		
-		        case TOCHAR:// convert the value on top of the stack into a character
-		  	  		  // remove it from the stack and store the result on top of it
-		        	if ( MEM[SP] < DoubleT || MEM[SP] > CharT) // 3 clops
-		        		throw new Exc_Exec(ErrorType.TOCHAR_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-			        nClops+=6; // including next check
-		        	if ( MEM[SP]!= CharT ) { // 2 clops
-			        	WRI1=SP-1; // 1 clop
-			        nClops+=7; // including next check
-			        	if ( MEM[SP]==LongT ) { // 2 clops
-			        		WRL1 = Double.doubleToRawLongBits(MEM[WRI1]); // 1 clop
-				        	if ( WRL1<0 || WRL1 >maxChar ) // 2 clops
-				        		throw new Exc_Exec(ErrorType.TOCHAR_NOT_SUPPORTED," for value "+WRL1);
-				        	MEM[WRI1] = (int) WRL1;// 1 clop
-				        	nClops+=4;
-			        	}
-			        	else {
-				        	if ( MEM[WRI1]<0 || MEM[WRI1] >maxChar ) // 2 clops
-				        		throw new Exc_Exec(ErrorType.TOCHAR_NOT_SUPPORTED," for value "+MEM[WRI1]);
-				        	MEM[WRI1] = (int) MEM[WRI1];// 2 clops 
-				        	nClops+=4;
-			        	}
-			        	MEM[SP] = CharT; // 1 clop
-					nClops++;
-		        }
 		        	break;
 
-		        case TOTYPE: // convert the value on top of the stack into a type
-		  	  		  // remove it from the stack and store the result on top of it 
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>=MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
-		        		throw new Exc_Exec(ErrorType.TOTYPE_NOT_SUPPORTED," for type code '"+typeName((int)MEM[SP])+"'");
-		        	MEM[SP-1] = (int) MEM[SP];// 3 clops 
-		        	if ( MEM[SP] == TypeT ) // 2 clops
-		        		MEM[SP] = MetaTypeT; // 1 clop
-		        	else
-		        		MEM[SP] = TypeT; // 1 clop
-					nClops +=9;
-		        	break;
-		
-		        case TOLIST: // convert the string on top of the stack into a list
-		  	  		  // remove it from the stack and store the result on top of it 
-		        	if ( MEM[SP] != StringT && MEM[SP] != ListT && MEM[SP] != JsonT) // 3 clops
-		        		throw new Exc_Exec(ErrorType.TOLIST_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	nClops+=5; // including next check
-		        	if ( MEM[SP] == ListT ) // 2 clops
-		        		break;
-		        	nClops+=2; // next check
-		        	if ( MEM[SP] == JsonT ) { // 2 clops
-		        		callJSTOLIST("TOLIST ");
-		        		break;
-		        	}
-		        	WRI1 = (int) MEM[SP-1]; // 2 clops
-		        	WRI2=(int) MEM[WRI1]; // 1 clop
-		        	MEM[SP]=ListT; // 2 clops including next check  
-		        	nClops+=5;
-		        	if ( WRI2== 0 ) {
-		        		MEM[SP-1]=nullValue; // 2 clops
-		        		nClops+=2;
-		        	}
-		        	else { 
-		        		callGetHeapTriplet("TOLIST ");
-		        		MEM[SP-1]=HPC; // 2 clops
-		        		nClops+= 3; // including last while
-		        		while ( WRI2 > 0 ) { // 1 clop 
-				        	WRI1--; // 1 clop
-				        	MEM[HPC]=MEM[WRI1]; // 2 clops
-				        	MEM[HPC-1]=CharT; // 2 clops
-				        	WRI3=HPC-2; // 2 clops
-				        	WRI2--; // 1 clop
-				        	if ( WRI2 >0 ) { // 1 clop
-				        		callGetHeapTriplet("TOLIST ");
-					        	MEM[WRI3]=HPC; // 1 clop
-					        	nClops++;
+		        case CAST: 
+		        	WRI5=(int)IR.getOperand(); // 1 clop
+		        	nClops++;
+		        	
+		        	switch(WRI5) {
+		        	
+			        case DoubleT: // convert the value on top of the stack into a double
+			        	if ( !isNumeric((int) MEM[SP])  ) // 4 clops
+			        		throw new Exc_Exec(ErrorType.TODOUBLE_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	nClops+=6; // including next check
+			        	if ( MEM[SP]!= DoubleT ) { // 2 clops
+				        	WRI1=SP-1; // 1 clop
+				        	nClops+=3; // including next check
+				        	if ( MEM[SP] == LongT ) { // 2 clops
+				        		WRL1= Double.doubleToRawLongBits(MEM[WRI1]); // 2 clops
+				        		MEM[WRI1]=(double)WRL1; // 1 clop
+				        		nClops+=3;
+				        	}
+				        	MEM[SP] = DoubleT; // 1 clop
+						nClops ++;
+			        	}
+			        	break;
+			
+			        case LongT: // convert the value on top of the stack into a long integer
+			        	if (  !isNumeric((int) MEM[SP]) )  // 4 clops
+			        		throw new Exc_Exec(ErrorType.TOLONG_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	nClops+=6; // including next check
+			        	if ( MEM[SP]!= LongT ) { // 2 clops
+				        	WRI1=SP-1; // 1 clop
+				        	if ( MEM[WRI1]<minLong || MEM[WRI1] >maxLong ) // 3 clops
+				        		throw new Exc_Exec(ErrorType.TOLONG_UNSUPP," for value "+MEM[WRI1]);
+				        	MEM[WRI1]=Double.longBitsToDouble((long)MEM[WRI1]); // 2 clops
+				        	MEM[SP] = LongT; // 1 clop
+				        	nClops +=7;
+			        	}
+			        	break;
+			
+			        case IntT: // convert the value on top of the stack into an integer
+			        	if ( !isNumeric((int) MEM[SP]) && MEM[SP]!=BoolT ) // 6 clops
+			        		throw new Exc_Exec(ErrorType.TOINT_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	nClops+=8; // including next check
+			        	if ( MEM[SP]!= IntT ) { // 2 clops
+				        	WRI1=SP-1; // 1 clop
+				        	nClops+=7; // including next check
+				        	if ( MEM[SP]==LongT ) { // 2 clops
+				        		WRL1 = Double.doubleToRawLongBits(MEM[WRI1]); // 1 clop
+					        	if ( WRL1<minInt || WRL1 >maxInt ) // 2 clops
+					        		throw new Exc_Exec(ErrorType.TOINT_UNSUPP," for value "+WRL1+"L");
+					        	MEM[WRI1] = (int) WRL1;// 1 clop
+					        	nClops+=4;
 				        	}
 				        	else {
-				        		MEM[WRI3]=nullValue; // 1 clop
-				        		nClops++;
-				        	}			        		
-				        	nClops+=10;
-		        		}
-		        		MEM[HP+1]=nullValue; // 2 clops 
-		        		nClops+=2;
-		        	}
-		        	break;
-
-		        case TOJSON: // convert the value on top of the stack into a JSON
-		  	  		  // remove it from the stack and store the result on top of it 
-		        	if ( MEM[SP] != ListT && MEM[SP] != JsonT) // 3 clops
-		        		throw new Exc_Exec(ErrorType.TOJSON_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	if ( MEM[SP] == JsonT ) // 2 clops
-		        		break;
-		    		WRI4 =  (int) MEM[SP-1]; // 1 clop
-		    		callSkipDeletedNulls();
-		        	nClops+=6; 
-		    		callSJSON("TOJSON ");
-		    		while ( WRI4 != nullValue ) { // 1 clop
-		    			if ( SP +3 >= HP ) // 2 clops
-		    				throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOJSON "+ov_MEM);
-		    			if ( MEM[WRI4-1] != ListT ) // 3 clops
-			        		throw new Exc_Exec(ErrorType.TOJSON_NOT_SUPPORTED," for list element type '"+typeName((int)MEM[SP])+"'"+
-			        				" - a list element must be a two element list (Key, value)");
-		    			WRI2 = (int) MEM[WRI4]; // address of the list (key, value) - 1 clop
-		    			SP++; // 1 clop
-		    			MEM[SP]=MEM[WRI2]; // 2 clops
-		    			if ( MEM[WRI2-1]!= StringT ) // 3 clops
-			        		throw new Exc_Exec(ErrorType.TOJSON_NOT_SUPPORTED," for key type '"+typeName((int)MEM[SP])+"'"+
-			        				" - it must be a string");
-		    			SP++; // 1 clop
-		    			MEM[SP]=StringT; // 1 clop
-		    			WRI2 = (int) MEM[WRI2-2]; // 2 clops
-		    			SP++; // 1 clop
-		    			MEM[SP]=MEM[WRI2]; // 2 clops
-		    			SP++; // 1 clop
-		    			MEM[SP]=MEM[WRI2-1]; // 3 clops
-		    			nClops+=22;
-		    			callNEWFLD("TOJSON ");
-		    			WRI3=WRI4; // 1 clop
-		    			callCJSON("TOJSON ");
-		    			WRI4 = (int)MEM[WRI3-2]; // 2 clops
+					        	if ( MEM[WRI1]<minInt || MEM[WRI1] >maxInt ) // 2 clops
+					        		throw new Exc_Exec(ErrorType.TOINT_UNSUPP," for value "+MEM[WRI1]);
+					        	MEM[WRI1] = (int) MEM[WRI1];// 2 clops 
+					        	nClops+=4;
+				        	}
+				        	MEM[SP] = IntT; // 1 clop
+						nClops++;
+			        }
+			        	break;
+			
+			        case CharT:// convert the value on top of the stack into a character
+			        	if ( !isNumeric((int) MEM[SP]) ) // 3 clops
+			        		throw new Exc_Exec(ErrorType.TOCHAR_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+				        nClops+=6; // including next check
+			        	if ( MEM[SP]!= CharT ) { // 2 clops
+				        	WRI1=SP-1; // 1 clop
+					        nClops+=7; // including next check
+				        	if ( MEM[SP]==LongT ) { // 2 clops
+				        		WRL1 = Double.doubleToRawLongBits(MEM[WRI1]); // 1 clop
+					        	if ( WRL1<0 || WRL1 >maxChar ) // 2 clops
+					        		throw new Exc_Exec(ErrorType.TOCHAR_UNSUPP," for value "+WRL1);
+					        	MEM[WRI1] = (int) WRL1;// 1 clop
+					        	nClops+=4;
+				        	}
+				        	else {
+					        	if ( MEM[WRI1]<0 || MEM[WRI1] >maxChar ) // 2 clops
+					        		throw new Exc_Exec(ErrorType.TOCHAR_UNSUPP," for value "+MEM[WRI1]);
+					        	MEM[WRI1] = (int) MEM[WRI1];// 2 clops 
+					        	nClops+=4;
+				        	}
+				        	MEM[SP] = CharT; // 1 clop
+				        	nClops++;
+			        	}
+			        	break;
+	
+			        case TypeT: // convert the value on top of the stack into a type
+			        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+			        		throw new Exc_Exec(ErrorType.TOTYPE_UNSUPP," for type code '"+typeName((int)MEM[SP])+"'");
+			        	MEM[SP-1] = (int) MEM[SP];// 3 clops 
+			        	MEM[SP] = TypeT; // 1 clop
+						nClops +=6;
+			        	break;
+			
+			        case ListT: // convert the element (string or json) on top of the stack into a list
+			        	if ( MEM[SP] != StringT && MEM[SP] != ListT && MEM[SP] != JsonT) // 3 clops
+			        		throw new Exc_Exec(ErrorType.TOLIST_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	nClops+=5; // including next check
+			        	if ( MEM[SP] == ListT ) // 2 clops
+			        		break;
+			        	nClops+=2; // next check
+			        	if ( MEM[SP] == JsonT ) { // 2 clops
+			        		callJSTOLIST("TOLIST ");
+			        		break;
+			        	}
+			        	WRI1 = (int) MEM[SP-1]; // 2 clops
+			        	WRI2=(int) MEM[WRI1]; // 1 clop
+			        	MEM[SP]=ListT; // 2 clops including next check  
+			        	nClops+=5;
+			        	if ( WRI2== 0 ) {
+			        		MEM[SP-1]=nullValue; // 2 clops
+			        		nClops+=2;
+			        	}
+			        	else { 
+			        		callGetHeapTriplet("TOLIST ");
+			        		MEM[SP-1]=HPC; // 2 clops
+			        		nClops+= 3; // including last while
+			        		while ( WRI2 > 0 ) { // 1 clop 
+					        	WRI1--; // 1 clop
+					        	MEM[HPC]=MEM[WRI1]; // 2 clops
+					        	MEM[HPC-1]=CharT; // 2 clops
+					        	WRI3=HPC-2; // 2 clops
+					        	WRI2--; // 1 clop
+					        	if ( WRI2 >0 ) { // 1 clop
+					        		callGetHeapTriplet("TOLIST ");
+						        	MEM[WRI3]=HPC; // 1 clop
+						        	nClops++;
+					        	}
+					        	else {
+					        		MEM[WRI3]=nullValue; // 1 clop
+					        		nClops++;
+					        	}			        		
+					        	nClops+=10;
+			        		}
+			        		MEM[HP+1]=nullValue; // 2 clops 
+			        		nClops+=2;
+			        	}
+			        	break;
+	
+			        case JsonT: // convert the list on top of the stack into a JSON
+			        	if ( MEM[SP] != ListT && MEM[SP] != JsonT) // 3 clops
+			        		throw new Exc_Exec(ErrorType.TOJSON_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	if ( MEM[SP] == JsonT ) // 2 clops
+			        		break;
+			    		WRI4 =  (int) MEM[SP-1]; // 1 clop
 			    		callSkipDeletedNulls();
-		    			nClops+=3;
-		    		}
-		    		nClops++; // last while check
-		    		MEM[SP]=JsonT; // 1 clop
-		    		nClops++;
-		        	break;
-
-		        case TOSTRING: // convert the value on top of the stack into a string
-		  	  		  // remove it from the stack and store the result on top of it 
-		        	if ( MEM[SP] != CharT && MEM[SP] != ListT && MEM[SP] != StringT) // 4 clops
-		        		throw new Exc_Exec(ErrorType.TOSTRING_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	nClops+=6; // including next check
-		        	if ( MEM[SP] == CharT ) { // 2clops
-		    	    	if ( SP +1 >= HP   ) // 2 clops
-		            		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
-		    			NSPP=HP; HP--; // 2 clops
-		    			MEM[HP]= MEM[SP-1]; // 3 clops
-		    			HP--; // 1clop
-		    			MEM[SP] = StringT; // 1 clop
-		    			nClops +=9;
-		    			endAddString("TOSTRING ");   	    	
-			        	if (SP  >= HP) // 1 clop
-			        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
-		        		SP++; MEM[SP]=StringT; // 2 clops
-		        		nClops+=3;
-		        	}
-		        	else {
-		        		nClops+=2; // next check
-		        		if ( MEM[SP] == ListT ) { // 2 clops
-			    	    	if ( SP  >= HP   ) // 1 clop
+			        	nClops+=6; 
+			    		callSJSON("TOJSON ");
+			    		while ( WRI4 != nullValue ) { // 1 clop
+			    			if ( SP +3 >= HP ) // 2 clops
+			    				throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOJSON "+ov_MEM);
+			    			if ( MEM[WRI4-1] != ListT ) // 3 clops
+				        		throw new Exc_Exec(ErrorType.TOJSON_UNSUPP," for list element type '"+typeName((int)MEM[SP])+"'"+
+				        				" - a list element must be a two element list (Key, value)");
+			    			WRI2 = (int) MEM[WRI4]; // address of the list (key, value) - 1 clop
+			    			SP++; // 1 clop
+			    			MEM[SP]=MEM[WRI2]; // 2 clops
+			    			if ( MEM[WRI2-1]!= StringT ) // 3 clops
+				        		throw new Exc_Exec(ErrorType.TOJSON_UNSUPP," for key type '"+typeName((int)MEM[SP])+"'"+
+				        				" - it must be a string");
+			    			SP++; // 1 clop
+			    			MEM[SP]=StringT; // 1 clop
+			    			WRI2 = (int) MEM[WRI2-2]; // 2 clops
+			    			SP++; // 1 clop
+			    			MEM[SP]=MEM[WRI2]; // 2 clops
+			    			SP++; // 1 clop
+			    			MEM[SP]=MEM[WRI2-1]; // 3 clops
+			    			nClops+=22;
+			    			callNEWFLD("TOJSON ");
+			    			WRI3=WRI4; // 1 clop
+			    			callCJSON("TOJSON ");
+			    			WRI4 = (int)MEM[WRI3-2]; // 2 clops
+				    		callSkipDeletedNulls();
+			    			nClops+=3;
+			    		}
+			    		nClops++; // last while check
+			    		MEM[SP]=JsonT; // 1 clop
+			    		nClops++;
+			        	break;
+	
+			        case StringT: // convert the value on top of the stack into a string
+			        	if ( MEM[SP] != CharT && MEM[SP] != ListT && MEM[SP] != StringT) // 4 clops
+			        		throw new Exc_Exec(ErrorType.TOSTRING_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+			        	nClops+=6; // including next check
+			        	if ( MEM[SP] == CharT ) { // 2clops
+			    	    	if ( SP +1 >= HP   ) // 2 clops
 			            		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
 			    			NSPP=HP; HP--; // 2 clops
-			    			WRI4= (int) MEM[SP-1]; // 2 clops
-				    		callSkipDeletedNulls();
-		    	        	nClops+=6; // including next check
-		    	    		if ( WRI4 != nullValue ) // 1 clop
-		    	    			do {
-		    			        	if ( MEM[WRI4-1] != CharT) // 3 clops
-		    			        		throw new Exc_Exec(ErrorType.TOSTRING_NOT_SUPPORTED,
-		    			        				" for list element with type '"+typeName((int)MEM[WRI1-1])+"'");
-					    	    	if ( SP  >= HP   ) // 1 clop
-					            		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
-		    		    			MEM[HP]= MEM[WRI4]; // 2 clops
-		    		    			HP--; // 1 clop		    	    				
-		    	    				WRI4 = (int) MEM[WRI4-2]; // 2 clops
-		    			    		callSkipDeletedNulls();
-		    	    				nClops +=10; // including while check
-		    	    			} while (WRI4!=nullValue); // 1 clop
-			    	    	endAddString("TOSTRING ");   	    	
+			    			MEM[HP]= MEM[SP-1]; // 3 clops
+			    			HP--; // 1clop
+			    			MEM[SP] = StringT; // 1 clop
+			    			nClops +=9;
+			    			endAddString("TOSTRING ");   	    	
 				        	if (SP  >= HP) // 1 clop
 				        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
 			        		SP++; MEM[SP]=StringT; // 2 clops
 			        		nClops+=3;
-		        		}
+			        	}
+			        	else { 
+			        		nClops+=2; // next check
+			        		if ( MEM[SP] == ListT ) { // 2 clops
+				    	    	if ( SP  >= HP   ) // 1 clop
+				            		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
+				    			NSPP=HP; HP--; // 2 clops
+				    			WRI4= (int) MEM[SP-1]; // 2 clops
+					    		callSkipDeletedNulls();
+			    	        	nClops+=6; // including next check
+			    	    		if ( WRI4 != nullValue ) // 1 clop
+			    	    			do {
+			    			        	if ( MEM[WRI4-1] != CharT) // 3 clops
+			    			        		throw new Exc_Exec(ErrorType.TOSTRING_UNSUPP,
+			    			        				" for list element with type '"+typeName((int)MEM[WRI1-1])+"'");
+						    	    	if ( SP  >= HP   ) // 1 clop
+						            		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
+			    		    			MEM[HP]= MEM[WRI4]; // 2 clops
+			    		    			HP--; // 1 clop		    	    				
+			    	    				WRI4 = (int) MEM[WRI4-2]; // 2 clops
+			    			    		callSkipDeletedNulls();
+			    	    				nClops +=10; // including while check
+			    	    			} while (WRI4!=nullValue); // 1 clop
+				    	    	endAddString("TOSTRING ");   	    	
+					        	if (SP  >= HP) // 1 clop
+					        		throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"TOSTRING "+ov_MEM);
+				        		SP++; MEM[SP]=StringT; // 2 clops
+				        		nClops+=3;
+			        		}
+			        	}
+			        	break;
+			        	
+			        	default: 
+			          		throw new Exc_Exec(ErrorType.CAST_UNSUPP," for operand '"+WRI5+"'");
+				     
 		        	}
 		        	break;
 		        	
 		        case TUPLE:
 		        	if ( MEM[SP] != JsonT && MEM[SP] != LongT) // 4 clops
-		        		throw new Exc_Exec(ErrorType.TOTUPLE_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
+		        		throw new Exc_Exec(ErrorType.LONG_JSON_EXPECTED," - found type '"+typeName((int)MEM[SP])+"'");
 		        	nClops+=6; // including next check
 		        	if ( MEM[SP] == LongT )  { // 2 clops
 		        		WRL1= Double.doubleToRawLongBits(MEM[SP-1]); // 2 clops
@@ -2248,55 +2389,57 @@ public class Exec {
 			        	MEM[SP]=cal.get(Calendar.MONTH)+1; // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.DAY_OF_MONTH); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.HOUR_OF_DAY); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.MINUTE); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.SECOND); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.MILLISECOND); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 			        	SP++; // 1 clop
 			        	WRI1=cal.get(Calendar.DAY_OF_WEEK)-1; // 20 clops
 			        	MEM[SP]=WRI1<1? 7: WRI1; // 2 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=25;
 			        	SP++; // 1 clop
 			        	MEM[SP]=cal.get(Calendar.DAY_OF_YEAR); // 20 clops
 			        	SP++; // 1 clop
 			        	MEM[SP]=IntT; // 1 clop
-		        		callCLIST("TUPLE "); 
+		        		addTriplet("TUPLE "); 
 		        		nClops+=23;
 		        	}
 		        	else {
 			    		WRI1 = (int) MEM[SP-1]; // 1 clop
 			    		WRI4 = (int) MEM[WRI1-2]; // skip the initial null field - 2 clops
+			    		if ( WRI4==deletedNullValue )
+			    			throw new Exc_Exec(ErrorType.JSON_DELETED);
 			    		callSkipDeletedNulls();
 			        	MEM[SP-1] = nullValue; // 2 clops
 			        	MEM[SP] = nullValue; // 1 clop
@@ -2322,7 +2465,7 @@ public class Exec {
 			    			MEM[SP] = MEM[WRI2]; // 2 clops
 			    			SP++; // 1 clop
 			    			MEM[SP] = MEM[WRI2-1]; // 2 clops
-			      			callCLIST("TUPLE ");
+			      			addTriplet("TUPLE ");
 			    			WRI4 = (int) MEM[WRI4-2]; // 2 clops
 			    	        nClops +=2;		
 			    			callSkipDeletedNulls();
@@ -2377,47 +2520,47 @@ public class Exec {
 		        	break;
 
 		        case PDATE: // returns the date represented by a long
-			    		WRI1= (int)IR.getOperand(); // 1 clop 
-			    		nClops+=2; // including next check
-			    		if ( WRI1 == 0 ) { // 1 clop
-			    			nClops+=2; // next check
-			    			if ( MEM[SP]!= LongT ) // 2 clops
-				    			throw new Exc_Exec(ErrorType.LONG_EXPECTED,"PDATE ");			    				
-			    			WRS1 =(new Date(Double.doubleToRawLongBits(MEM[SP-1]))).toString();
-			    			nClops+=2+WRS1.length()*2; // linear cost for constractin the string
-			    		}
-			    		else {
-			    			nClops+=2; // next check
-			    			if ( MEM[SP]!= StringT ) // 2 clops
-				    			throw new Exc_Exec(ErrorType.STRING_EXPECTED,"PDATE ");			    				
-			    			WRS2= PrintOutput.getStringHeap((int)MEM[SP-1]);
-			    			nClops+=2+WRS2.length()*2; // linear cost for constractin the string
-			    			SP-=2; // 2 clops
-			    			nClops+=4; // including next check
-			    			if ( MEM[SP]!= LongT ) // 2 clops
-				    			throw new Exc_Exec(ErrorType.LONG_EXPECTED,"PDATE ");
-			    			try {
-			    				WRS1=(new SimpleDateFormat(WRS2)).format(new Date(Double.doubleToRawLongBits(MEM[SP-1])));
-			    				nClops+=2+WRS2.length()*2+WRS1.length();
-			    			}
-			    			catch ( IllegalArgumentException e ) {
-			    				throw new Exc_Exec(ErrorType.WRONG_DATE,"illegal data pattern ");
-			    			}
-			    			catch ( NullPointerException  e ) {
-			    				throw new Exc_Exec(ErrorType.WRONG_DATE,"null data pattern");
-			    			}			    				
-			    		}
-			    		SP-=2; // 2 clops
-			    		nClops+=6; // next check
-			    		if (SP +WRS1.length()+3 >= HP ) // 4 clops
-			    			throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PDATE "+ov_MEM);
+		    		WRI1= (int)IR.getOperand(); // 1 clop 
+		    		nClops+=2; // including next check
+		    		if ( WRI1 == 0 ) { // 1 clop
+		    			nClops+=2; // next check
+		    			if ( MEM[SP]!= LongT ) // 2 clops
+			    			throw new Exc_Exec(ErrorType.LONG_EXPECTED,"PDATE ");			    				
+		    			WRS1 =(new Date(Double.doubleToRawLongBits(MEM[SP-1]))).toString();
+		    			nClops+=2+WRS1.length()*2; // linear cost for constractin the string
+		    		}
+		    		else {
+		    			nClops+=2; // next check
+		    			if ( MEM[SP]!= StringT ) // 2 clops
+			    			throw new Exc_Exec(ErrorType.STRING_EXPECTED,"PDATE ");			    				
+		    			WRS2= PrintOutput.getStringHeap((int)MEM[SP-1]);
+		    			nClops+=2+WRS2.length()*2; // linear cost for constractin the string
+		    			SP-=2; // 2 clops
+		    			nClops+=4; // including next check
+		    			if ( MEM[SP]!= LongT ) // 2 clops
+			    			throw new Exc_Exec(ErrorType.LONG_EXPECTED,"PDATE ");
+		    			try {
+		    				WRS1=(new SimpleDateFormat(WRS2)).format(new Date(Double.doubleToRawLongBits(MEM[SP-1])));
+		    				nClops+=2+WRS2.length()*2+WRS1.length();
+		    			}
+		    			catch ( IllegalArgumentException e ) {
+		    				throw new Exc_Exec(ErrorType.WRONG_DATE,"illegal data pattern ");
+		    			}
+		    			catch ( NullPointerException  e ) {
+		    				throw new Exc_Exec(ErrorType.WRONG_DATE,"null data pattern");
+		    			}			    				
+		    		}
+		    		SP-=2; // 2 clops
+		    		nClops+=6; // next check
+		    		if (SP +WRS1.length()+3 >= HP ) // 4 clops
+		    			throw new Exc_Exec(ErrorType.STACK_HEAP_OVERFLOW,"PDATE "+ov_MEM);
 					NSPP=HP; MEM[HP]=0; // 2 clops
 					HP--; // 1 clop
 					nClops+=3;
 					for ( int i=0; i<WRS1.length(); i++ ) { // 3 clops
-	    	    				MEM[NSPP]++; // 3 clops
-	    	    				MEM[HP]= WRS1.charAt(i); // 3 clops
-	    	    				HP--; // 1 clop
+    	    				MEM[NSPP]++; // 3 clops
+    	    				MEM[HP]= WRS1.charAt(i); // 3 clops
+    	    				HP--; // 1 clop
 					}
 				    SP++; // 1 clop - in this cell the pointer to the string will be stored
 				    SP++; // 1 clop - this cell will be next removed by endAddString 
@@ -2428,9 +2571,7 @@ public class Exec {
 					MEM[SP]=StringT; // 1 clop
 					nClops+=3;
 			    break;
-
-		        	
-		        	
+        	
 		        case RAND: // a double number between 0 and 1 is randomly generated and 
 		        	 // pushed into the stack
 		        	if (SP +1 >= HP ) // 2 clops
@@ -2444,7 +2585,7 @@ public class Exec {
 
 		        case EXP:// compute the natural exponential function of a number 
 		        	if ( MEM[SP] < DoubleT || MEM[SP] > CharT ) // 3 clops
-		        		throw new Exc_Exec(ErrorType.EXP_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
+		        		throw new Exc_Exec(ErrorType.NUM_EXPECTED," for type "+typeName((int)MEM[SP]));
 		        	MEM[SP-1] = Math.exp(MEM[SP-1]); // (4+cexp) clops
 		        	MEM[SP] = DoubleT; // 1 clop
 				nClops +=8+cexp;
@@ -2452,9 +2593,9 @@ public class Exec {
 		
 		        case LOG: // compute the natural logarithm of a number 
 		        	if ( MEM[SP] < DoubleT || MEM[SP] > CharT ) // 3 clops
-		        		throw new Exc_Exec(ErrorType.LOG_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
+		        		throw new Exc_Exec(ErrorType.NUM_EXPECTED," - found type "+typeName((int)MEM[SP]));
 		        	if ( MEM[SP-1] <= 0 ) // 3 clops
-		        		throw new Exc_Exec(ErrorType.LOG_NOT_SUPPORTED," for value "+MEM[SP-1]);
+		        		throw new Exc_Exec(ErrorType.POS_NUM_EXPECTED," -found value "+MEM[SP-1]);
 		        	MEM[SP-1] = Math.log(MEM[SP-1]); // (4+clog) clops
 		        	MEM[SP] = DoubleT; // 1 clop
 					nClops +=11+clog;
@@ -2463,7 +2604,7 @@ public class Exec {
 		        case POW: // compute the power of a number raised to another number  
 		        	if ( MEM[SP] < DoubleT || MEM[SP] > CharT || 
 		        			MEM[SP-2] < DoubleT || MEM[SP-2] > CharT  ) // 7 clops
-		        		throw new Exc_Exec(ErrorType.POW_NOT_SUPPORTED," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
+		        		throw new Exc_Exec(ErrorType.NUM_EXPECTED," - found types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
 		        	MEM[SP-3] = Math.pow(MEM[SP-3],MEM[SP-1]); // (6+cpow) clops
 		        	if ( MEM[SP] != DoubleT && MEM[SP-2] != DoubleT && MEM[SP-1] >= 0 && MEM[SP-3] <= maxInt ) // 11 clops
 		        		MEM[SP-2] = IntT; // 2 clops
@@ -2483,43 +2624,68 @@ public class Exec {
 				nClops +=11;
 		        	break;
 
-		        case REMAIN: // compute the reminder of two numbers 
-		        	if ( MEM[SP] < DoubleT || MEM[SP] > CharT || 
-		        			MEM[SP-2] < DoubleT || MEM[SP-2] > CharT  ) // 7 clops
-		        		throw new Exc_Exec(ErrorType.REMINDER_NOT_SUPPORTED," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
-		        	MEM[SP-3] = MEM[SP-3] % MEM[SP-1]; // (6+crem) clops
-		        	if ( MEM[SP] != DoubleT && MEM[SP-2] != DoubleT ) // 5 clops
-		        		MEM[SP-2] = IntT; // 2 clops
-		        	else
-		        		MEM[SP-2] = DoubleT; // 2 clops
+		        case REMAINDER: // compute the reminder of two numbers 
+		        	if ( !isNumeric((int)MEM[SP])  || !isNumeric((int)MEM[SP-2]) ) // 7 clops
+		        		throw new Exc_Exec(ErrorType.REMAINDER_UNSUPP," for types "+typeName((int)MEM[SP-2])+" and "+types[(int)MEM[SP]]);
+	        		if ( MEM[SP-1] == 0 ) // 2 clops
+		          		throw new Exc_Exec(ErrorType.ZERO_DIVIDE);		        		
+				    nClops+=14; // including next two checks
+		        	if ( MEM[SP]==LongT || MEM[SP-2]==LongT ) // 3 clops
+			        	if ( MEM[SP-2]==DoubleT ) { // 2 clops
+			        		WRL2=Double.doubleToRawLongBits(MEM[SP-1]); // 2 clpos
+			        		MEM[SP-3] = MEM[SP-3] % WRL2; // (4 + crem) clops
+			        		MEM[SP-2] = DoubleT; // 2 clops
+			        		nClops +=crem+8;
+			        	}
+			        	else 
+			        		if ( MEM[SP]==DoubleT ) { // 2 clops
+			        			WRL1=Double.doubleToRawLongBits(MEM[SP-3]); // 2 clops
+			        			MEM[SP-3] = WRL1 % MEM[SP-1]; // (4 + crem) clops
+			        			MEM[SP-2] = DoubleT; // 2 clops
+			        			nClops+= crem + 10;
+			        		}
+			        		else {
+			        			WRL1=Double.doubleToRawLongBits(MEM[SP-3]); // 2 clops
+			        			WRL2=Double.doubleToRawLongBits(MEM[SP-1]);  // 2 clops
+			        			WRL1= WRL1 % WRL2; // (1+crem) clops
+			        		    MEM[SP-3]= Double.longBitsToDouble(WRL1); // 2 clops
+			        		    MEM[SP-2] = LongT; // 2 clops
+			        		    nClops+=crem+11;
+			        		}
+				    else {		        	
+			        	MEM[SP-3] = MEM[SP-3] % MEM[SP-1]; // (6+crem) clops
+			        	if ( MEM[SP] != DoubleT && MEM[SP-2] != DoubleT ) // 5 clops
+			        		MEM[SP-2] = IntT; // 2 clops
+			        	else
+			        		MEM[SP-2] = DoubleT; // 2 clops
+			        	nClops+=crem+13;
+					}
 		        	SP -=2; // 2 clops
-					nClops +=21+crem;
+					nClops +=2;
 		        	break;
 
-		        case EQ: // check whether two values are equal 
-		        	// the two values must have the same type or must be both numeric
-		        	// or one of them must be null (that is therefore comparable with any value)
-		        	// types "metatype" and "type" are comparable
+		        case EQ: // check whether two operands of any type are equal (operands of different type are comparable)
+		        	// it returns true if (1) they have same value and type or 
+		        	// (2) they are numeric and their values are equal after casting to the most general type 
 		        	SP--; SP--; // 2 clops
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
-		        		throw new Exc_Exec(ErrorType.EQ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	if ( MEM[SP+2] < DoubleT || MEM[SP+2]>MetaTypeT ) // 4 clops (assuming 2 clops for storing MEM[SP+2])
-		        		throw new Exc_Exec(ErrorType.EQ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP+2])+"'");
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        		throw new Exc_Exec(ErrorType.EQ_NEQ_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+		        	if ( MEM[SP+2] < DoubleT || MEM[SP+2]>TypeT ) // 4 clops (assuming 2 clops for storing MEM[SP+2])
+		        		throw new Exc_Exec(ErrorType.EQ_NEQ_UNSUPP," for type '"+typeName((int)MEM[SP+2])+"'");
 		        	nClops+=9; 
-		        	callEQ();
+		        	callEQ(); // modify register WRI1
 		        	MEM[SP-1]=WRI1; // 2 clops
 		        	nClops+=2;
 		        	break;		
 
-		        case NEQ: // check whether two values are not equal 
-		        	// the two values must have the same type or must be both numeric
-		        	// or one of them must be null (that is therefore comparable with any value)
-		        	// types "metatype" "type" are comparable
+		        case NEQ: // check whether two operands of any type are equal (operands of different type are comparable) 
+		        	// it returns false if (1) they have same value and type or 
+		        	// (2) they are numeric and their values are equal after casting to the most general type 
 		        	SP--; SP--; // 2 clops
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
-		        		throw new Exc_Exec(ErrorType.NEQ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	if ( MEM[SP+2] < DoubleT || MEM[SP+2]>MetaTypeT ) // 4 clops (assuming 2 clops for storing MEM[SP+2])
-		        		throw new Exc_Exec(ErrorType.NEQ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP+2])+"'");
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        		throw new Exc_Exec(ErrorType.EQ_NEQ_UNSUPP," for type '"+typeName((int)MEM[SP])+"'");
+		        	if ( MEM[SP+2] < DoubleT || MEM[SP+2]>TypeT ) // 4 clops (assuming 2 clops for storing MEM[SP+2])
+		        		throw new Exc_Exec(ErrorType.EQ_NEQ_UNSUPP," for type '"+typeName((int)MEM[SP+2])+"'");
 		        	nClops+=9; // including next check
 		        	callEQ();
 		        	MEM[SP-1]=1-WRI1; // 3 clops
@@ -2527,15 +2693,13 @@ public class Exec {
 		        	break;		
 
 		        case LT:// check whether the first operand value is less than the second one
-		        	// admissible types are: numeric, string and null
+		        	// admissible types are: numeric, string, and bool 
 		        	// the two values must have the same type or must be both numeric
-		        	// or one of them must be null (that is therefore comparable with any value)
 		        	SP--; SP--; // 2 clops
 		        	nClops+=14; // including next check
-	        		if ( MEM[SP]<DoubleT || MEM[SP]>StringT || MEM[SP+2]>StringT || MEM[SP+2]<DoubleT ||  // 7 clops
-	        				( (MEM[SP+2]>CharT || MEM[SP]>CharT) && MEM[SP] != NullT && MEM[SP+2] != NullT &&
-	        						MEM[SP+2]!= MEM[SP] ) ) // 5 clops
-		        		throw new Exc_Exec(ErrorType.LT_NOT_SUPPORTED," for types '"+typeName((int)MEM[SP])
+	        		if ( !( isNumeric((int)MEM[SP]) && isNumeric((int) MEM[SP+2]) ) && 
+		        		 !( MEM[SP] == MEM[SP+2] && (MEM[SP]==BoolT || MEM[SP]==StringT))  ) // 14 clops
+		        		throw new Exc_Exec(ErrorType.REL_OP_UNSUPP," for types '"+typeName((int)MEM[SP])
 		        				+"' and '"+typeName((int)MEM[SP+2])+"'");
 	        		callLT();
 	        		MEM[SP-1]=WRI1; // 2 clops
@@ -2543,15 +2707,13 @@ public class Exec {
 		        	break;	
 	
 		        case LTE: // check whether the first operand value is less than or equal to the second one
-		        	// admissible types are: numeric, string and null
+		        	// admissible types are: numeric, string, and bool 
 		        	// the two values must have the same type or must be both numeric
-		        	// or one of them must be null (that is therefore comparable with any value)
 		        	SP--; SP--; // 2 clops
 		        	nClops+=14; // including next check
-	        		if ( MEM[SP]<DoubleT || MEM[SP]>StringT || MEM[SP+2]>StringT || MEM[SP+2]<DoubleT ||  // 7 clops
-	        				( (MEM[SP+2]>CharT || MEM[SP]>CharT) && MEM[SP] != NullT && MEM[SP+2] != NullT &&
-	        						MEM[SP+2]!= MEM[SP] ) ) // 5 clops
-		        		throw new Exc_Exec(ErrorType.LTE_NOT_SUPPORTED," for types '"+typeName((int)MEM[SP])
+		    		if ( !( isNumeric((int)MEM[SP]) && isNumeric((int) MEM[SP+2]) ) && 
+		        		 !( MEM[SP] == MEM[SP+2] && (MEM[SP]==BoolT || MEM[SP]==StringT))  ) // 14 clops
+		        		throw new Exc_Exec(ErrorType.REL_OP_UNSUPP," for types '"+typeName((int)MEM[SP])
 		        				+"' and '"+typeName((int)MEM[SP+2])+"'");
 	        		callLTE();
 	        		MEM[SP-1]=WRI1; // 2 clops
@@ -2559,19 +2721,17 @@ public class Exec {
 		        	break;	
 	
 		        case GT: // check whether the first operand value is greater than the second one
-		        	// admissible types are: numeric, string and null
+		        	// admissible types are: numeric, string and bool
 		        	// the two values must have the same type or must be both numeric
-		        	// or one of them must be null (that is therefore comparable with any value)
 		        	SP--; SP--; // 2 clops
 		        	nClops+=14; // including next check
-	        		if ( MEM[SP]<DoubleT || MEM[SP]>StringT || MEM[SP+2]>StringT || MEM[SP+2]<DoubleT ||  // 7 clops
-	        				( (MEM[SP+2]>CharT || MEM[SP]>CharT) && MEM[SP] != NullT && MEM[SP+2] != NullT &&
-	        						MEM[SP+2]!= MEM[SP] ) ) // 5 clops
-		        		throw new Exc_Exec(ErrorType.GT_NOT_SUPPORTED," for types '"+typeName((int)MEM[SP])
+		    		if ( !( isNumeric((int)MEM[SP]) && isNumeric((int) MEM[SP+2]) ) && 
+		        		 !( MEM[SP] == MEM[SP+2] && (MEM[SP]==BoolT || MEM[SP]==StringT))  ) // 14 clops
+		        		throw new Exc_Exec(ErrorType.REL_OP_UNSUPP," for types '"+typeName((int)MEM[SP])
 		        				+"' and '"+typeName((int)MEM[SP+2])+"'");
 	        		callLTE();
 	        		MEM[SP-1]=1-WRI1; // 3 clops
-	        		nClops+=3; 
+	        		nClops+=3;
 		        	break;	
 	
 		        case GTE: // check whether the first operand value is greater than or equal to the second one
@@ -2580,19 +2740,32 @@ public class Exec {
 		        	// or one of them must be null (that is therefore comparable with any value)
 		        	SP--; SP--; // 2 clops
 		        	nClops+=14; // including next check
-	        		if ( MEM[SP]<DoubleT || MEM[SP]>StringT || MEM[SP+2]>StringT || MEM[SP+2]<DoubleT ||  // 7 clops
-	        				( (MEM[SP+2]>CharT || MEM[SP]>CharT) && MEM[SP] != NullT && MEM[SP+2] != NullT &&
-	        						MEM[SP+2]!= MEM[SP] ) ) // 5 clops
-		        		throw new Exc_Exec(ErrorType.GTE_NOT_SUPPORTED," for types '"+typeName((int)MEM[SP])
+		    		if ( !( isNumeric((int)MEM[SP]) && isNumeric((int) MEM[SP+2]) ) && 
+		        		 !( MEM[SP] == MEM[SP+2] && (MEM[SP]==BoolT || MEM[SP]==StringT))  ) // 14 clops
+		        		throw new Exc_Exec(ErrorType.REL_OP_UNSUPP," for types '"+typeName((int)MEM[SP])
 		        				+"' and '"+typeName((int)MEM[SP+2])+"'");
 	        		callLT();
 	        		MEM[SP-1]=1-WRI1; // 3 clops
 	        		nClops+=3; 
 		        	break;	
-	
+
+		        case CHECKN:// check that the top element is a number 
+		        	if ( !isNumeric((int)MEM[SP])   ) // 3 clops
+		        		throw new Exc_Exec(ErrorType.NUM_EXPECTED," found type '"+typeName((int)MEM[SP])
+	        				+"'");
+					nClops +=3;
+		        	break;
+
+		        case CHECKB:// check that the top element is a bool 
+		        	if ( MEM[SP] !=  BoolT   ) // 3 clops
+		        		throw new Exc_Exec(ErrorType.BOOL_EXPECTED," found type '"+typeName((int)MEM[SP])
+	        				+"'");
+					nClops +=3;
+		        	break;
+		        	
 		        case NOT:// implement the not boolean operator 
 		        	if ( MEM[SP] !=  BoolT   ) // 3 clops
-		        		throw new Exc_Exec(ErrorType.NOT_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])
+		        		throw new Exc_Exec(ErrorType.BOOL_EXPECTED," found type '"+typeName((int)MEM[SP])
 	        				+"'");
 		        	if ( MEM[SP-1]==0 ) // 2 clops
 		        		MEM[SP-1]=1; // 2 clops
@@ -2608,7 +2781,7 @@ public class Exec {
 		
 		        case JUMPZ: // if the stack operand is false (i.e., equal to 0)  jump to another instruction
 		        	if ( MEM[SP] != BoolT) // 2 clops
-		        		throw new Exc_Exec(ErrorType.JUMPZ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
+		        		throw new Exc_Exec(ErrorType.BOOL_EXPECTED," found type '"+typeName((int)MEM[SP])+"'");
 		        	nClops+=5; // including next check
 		        	if ( MEM[SP-1] == 0 ) { // 3 clops
 		        		IP = (int) IR.getOperand();
@@ -2620,7 +2793,7 @@ public class Exec {
 		
 		        case JUMPNZ: // if the stack operand is true (i.e., equal to 1)  jump to another instruction
 		        	if ( MEM[SP] != BoolT) // 2 clops
-		        		throw new Exc_Exec(ErrorType.JUMPZ_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
+		        		throw new Exc_Exec(ErrorType.BOOL_EXPECTED," found type '"+typeName((int)MEM[SP])+"'");
 		        	nClops+=5; // including next check
 		        	if ( MEM[SP-1] != 0 ) { // 3 clops
 		        		IP = (int) IR.getOperand();
@@ -2643,16 +2816,16 @@ public class Exec {
 		        	break;
 		
 		        case HLIST: // include a first element into the list under construction  
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
 		        		throw new Exc_Exec(ErrorType.HLIST_NOT_SUPPORTED,"  for type '"+typeName((int)MEM[SP])+"'");
 		        	callHLIST("HLIST ");
 					nClops +=3;
 		        	break;
 		
 		        case CLIST: // continue the list construction by appending a new element 
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
 		        		throw new Exc_Exec(ErrorType.CLIST_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
-		        	callCLIST("CLIST ");
+		        	addTriplet("CLIST ");
 					nClops +=3;
 		        	break;
 		
@@ -2698,7 +2871,7 @@ public class Exec {
 					break;
 
 		        case MODVEL: // modify the head element of a list or a field 
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
 		        		throw new Exc_Exec(ErrorType.MODVEL_NOT_SUPPORTED,"  for type '"+typeName((int)MEM[SP])+"'");
 		        	SP--; SP--; // 2 clops
 		        	if ( MEM[SP] != ListT && MEM[SP] != FieldT) // 2 clops
@@ -2847,8 +3020,8 @@ public class Exec {
 		        	break;
 
 		        case NEWFLD: // given a string K and a value V on top of the stack,
-		        	// construct a new field (K,V) in the heap and push its address on top of the stack
-		        	if ( MEM[SP] < DoubleT || MEM[SP]>MetaTypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
+		        	// construct a new field key-value (K,V) in the heap and push its address on top of the stack
+		        	if ( MEM[SP] < DoubleT || MEM[SP]>TypeT )  // 3 clops (assuming 1 clop for storing MEM[SP])
 		        		throw new Exc_Exec(ErrorType.NEWFLD_NOT_SUPPORTED," for type '"+typeName((int)MEM[SP])+"'");
 		        	if ( MEM[SP-2] != StringT ) // 3 clops
 		        		throw new Exc_Exec(ErrorType.STRING_EXPECTED," - found type '"+typeName((int)MEM[SP])+"'");
@@ -2890,7 +3063,7 @@ public class Exec {
 		        	
 		        case LEN: // compute the length of a list or json or a string 
 		        	if ( MEM[SP] != StringT && MEM[SP] != ListT && MEM[SP] != JsonT ) // 4 clops
-		        		throw new Exc_Exec(ErrorType.LEN_NOT_SUPPORTED," for type "+typeName((int)MEM[SP]));
+		        		throw new Exc_Exec(ErrorType.STRING_LIST_JSON_EXPECTED," - found type "+typeName((int)MEM[SP]));
 		        	nClops+=6; // including next check
 		        	if( MEM[SP] == ListT  ) { // 2 clops
 		        		 WRI4=(int)MEM[SP-1]; // 2 clops
@@ -2912,6 +3085,8 @@ public class Exec {
 		        	if( MEM[SP] == JsonT ) { // 2 clops
 		        		 WRI2=(int)MEM[SP-1]; // 2 clops
 		        		 WRI4 = (int) MEM[WRI2-2]; // skip the initial null field - 2 clops
+		        		 if ( WRI4==deletedNullValue )
+		        				throw new Exc_Exec(ErrorType.JSON_DELETED);
 	 		        	 callSkipDeletedNulls();
 		        		 WRI1=0; // 1 clop
 		        		 nClops+=6; // include last while check 
@@ -3099,112 +3274,42 @@ public class Exec {
 		        	execF(debugAct,IPC);
 		        break;
 		        	
-		        case FUNCF: 
-		        	WRIL=(int) MEM[SP-1]; // 2 clops
-		        	IRF=CODE[WRIL]; // 1 clop
-		        	WRI1= (int) IRF.getOperand(); // 1 clop		        	
-	        		MEM[SP-1]=WRI1; // 2 clops
-	        		nClops+=6; 
-	        	break;
+		        case DISPLAY:
+		        	WRI1 = (int) MEM[SP]; // 1 clop
+		        	if ( WRI1 < DoubleT || WRI1 > TypeT ) // 2 clops
+	        			throw new Exc_Exec(ErrorType.LIST_STRING_EXPECTED," - found type '"+types[(int)MEM[SP-2]]+"'");
+		    		SP--; // 1 clop
+		        	PrintOutput.typedPrintV(MEM[SP],WRI1,PrintOutput.prOptSt);
+		        	SP--; // 1 clop
+		        	nClops+=4;
+		        break;
+
+		        case READL:
+		        	readLine();
+		        break;
 	        	
 			    case PRINT: 
 		    		WRI3 = (int) IR.getOperand(); // 1 clop
 		    		WRI1 = (int) MEM[SP]; // 1 clop
 		    		SP--; // 1 clop
-    	        		nClops +=4; // including next check
-    	        		if ( WRI1 >= DoubleT && (WRI1 <= MetaTypeT || WRI1==FuncT) ) { // 1 clop
-    	        			if (OP+1 > OS ) // 1 clop
-    	        				throw new Exc_Exec(ErrorType.OUTPUT_OVERFLOW, "Internal: increase the output size > "
+    	        	nClops +=5; // including next check
+    	        	if ( WRI1 >= DoubleT && (WRI1 <= TypeT || WRI1==FuncT || WRI1==LabT) ) { // 1 clop
+    	        		if (OP+3 > OS ) // 1 clop
+    	        			throw new Exc_Exec(ErrorType.OUTPUT_OVERFLOW, "Internal: increase the output size > "
 									+OS + " for Argument EXECOS");
-				        	OUTPUT[OP]= MEM[SP]; // 2 clops 
-		    	        		SP--; // 1 clop
-				        	OP++; // 1 clops 
-				        	nClops+=6; // including next check
-				        	if ( WRI3 == 1 ) { // 1 clop
-				        		nClops++; // next check
-				        		if ( WRI1==StringT ) { // 1 clop
-				        			OUTPUT[OP]= StringQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-				        		}
-			        			nClops++; // next check
-			        			if ( WRI1==CharT) { // 1 clop
-			        				OUTPUT[OP]= CharQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-			        			nClops++; // next check
-			        			if ( WRI1==NullT ) { // 1 clop
-			        				OUTPUT[OP]= NullQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-				        	}
-				        	nClops += 2; // next check
-				        	if ( WRI3 == 3 ) { // 1 clop
-				        		nClops++; // next check
-				        		if ( WRI1==StringT ) { // 1 clop
-				        			OUTPUT[OP]= StringQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-				        		}
-			        			nClops++; // next check
-			        			if ( WRI1==CharT) { // 1 clop
-			        				OUTPUT[OP]= CharQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-			        			nClops++; // next check
-			        			if ( WRI1==NullT ) { // 1 clop
-			        				OUTPUT[OP]= NullQF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-			        			nClops++; // next check
-			        			if ( WRI1==JsonT ) { // 1 clop
-			        				OUTPUT[OP]= JsonIndentAllF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-			        			nClops++; // next check
-			        			if ( WRI1==ListT ) { // 1 clop
-			        				OUTPUT[OP]= ListIndentAllF; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-				        	}
-				        	nClops += 2; // next check
-			        		if ( WRI3 == 2 ) { // 2 clops
-			        			nClops++; // next check
-			        			if ( WRI1==JsonT ) { // 1 clop
-			        				OUTPUT[OP]= JsonIndent1F; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-			        			nClops++; // next check
-			        			if ( WRI1==ListT ) { // 1 clop
-			        				OUTPUT[OP]= ListIndent1F; // 1 clop
-						        	OP++; // 1 clop
-				        			nClops+=2;
-				        			break;
-			        			}
-				        	}
-				        	OUTPUT[OP]= WRI1; // 1 clop
-				        	OP++; // 1 clop
-				        	nClops+=2;
-	    	        	}
+    	        		OUTPUT[OP]= MEM[SP]; // 2 clops 
+    	        		SP--; // 1 clop
+    	        		OP++; // 1 clops 
+    	        		OUTPUT[OP]= WRI1; // 1 clops
+    	        		OP++; // 1 clops 
+    	        		OUTPUT[OP]= WRI3; // 1 clops
+    	        		OP++; // 1 clops 
+    	        		nClops+=9; 
+	    	        }
     	        	else 
 			        		throw new Exc_Exec(ErrorType.PRINT_NOT_SUPPORTED, " for type '"+typeName((int)MEM[WRI1])+"'");
 		        	break;
+	 
 		        	
 		        default:
 		        	throw new Exc_Exec(ErrorType.WRONG_MACHINE_OPERATOR);

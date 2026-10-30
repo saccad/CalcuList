@@ -55,8 +55,7 @@ public class Transl {
 		int n = unitCode.numInstr() - ind+1;
 		CodeUnit lambdaCode = new CodeUnit(n);
 		for ( int i = ind; i<unitCode.numInstr(); i++)
-			if ( Instruction.isJumpOperator(unitCode.code.get(i).getOperator() ) &&
-					unitCode.code.get(i).getOperator() != Operator.CALL )
+			if ( Instruction.isJumpOperator(unitCode.code.get(i).getOperator() ) )
 				lambdaCode.ins(unitCode.code.get(i).getOperator(), 
 						unitCode.code.get(i).getOperand()-ind, unitCode.code.get(i).getComment());
 			else
@@ -65,56 +64,19 @@ public class Transl {
 		unitCode.setNumInstr(ind);
 		return lambdaCode;
 	}
-	public static void tailRecOpt(int funcN, int nPar) throws Exc {
-		int nInstr= unitCode.numInstr();
-		int iTailR =1; boolean doneTailOpt=false; int iTailRec=-1;
-		boolean justCalledTail=false;
-		for ( int i=0; i<nInstr; i++) {
-			Instruction cInstr = unitCode.code.get(i);
-			if ( cInstr.getOperator() == Operator.JUMP ) {
-				if ( justCalledTail ) {
-					cInstr.modOperator(Operator.NEXT);
-					cInstr.modComment("* dummy command after tail recursion ");				
-				}
-			}
-			justCalledTail=false;	
-			if ( cInstr.getOperator() == Operator.CALL &&
-					cInstr.getOperand()== funcN)
-				if ( isTailRec(i+1) ) {
-					cInstr.modOperator(Operator.JUMP);
-					if ( iTailRec==-1 )
-						iTailRec=unitCode.numInstr();
-					cInstr.modOperand(iTailRec);
-					cInstr.modComment("-> tail recursion "+iTailR);
-					justCalledTail=true;
-					if ( !doneTailOpt ) {
-						unitCode.ins(Operator.NEXT, 0, "* tail recursion ");
-						unitCode.ins(Operator.MOVEARG, nPar);
-						unitCode.ins(Operator.JUMP, 1, "-> launch tail execution ");
-						doneTailOpt=true;
-					}
-					iTailR++; 
-				}
-		}			
-	}
-	static boolean isTailRec( int i ) {
-		Instruction cInstr = unitCode.code.get(i);
-		if ( cInstr.getOperator()==Operator.RETURN )
-			return true;
-		if ( cInstr.getOperator()==Operator.NEXT )
-			return isTailRec(i+1);
-		if ( cInstr.getOperator()==Operator.JUMP)
-			return isTailRec((int)cInstr.getOperand());
-		return false;
-	}
+
+	
 	public static CodeUnit end() {
 		return unitCode;
 	}
 	
-	public static CodeUnit nullBodyFunct (String fName, int fCode, int arity) throws Exc {
+	public static CodeUnit nullBodyFunct (String fName, int fCode, int arity, boolean hasFuncRet) throws Exc {
 		nullUnitCode=new CodeUnit();
 		nullUnitCode.ins(Operator.START,fCode,"* "+fName);
-		nullUnitCode.ins(Operator.PUSHN,0);
+		if (hasFuncRet)
+			nullUnitCode.ins(Operator.PUSHN,0,"* <<incomplete>>"); // error labeled function incomplete
+		else
+			nullUnitCode.ins(Operator.PUSHN,0);
 		nullUnitCode.ins(Operator.RETURN,arity);
 		return nullUnitCode;
 	}

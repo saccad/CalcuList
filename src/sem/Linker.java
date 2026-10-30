@@ -39,6 +39,7 @@ public class Linker {
 	static int nUnsFTentries;
 	static int nPr;
 	static int lastInsPoint;
+	static boolean incompleteLF;
 	public static int link ( CodeUnit uc ) throws Exc {
 		entries.clear(); 
 		nUnsFTentries = 0;
@@ -57,6 +58,10 @@ public class Linker {
 		} while (nUnsFTentries > 0);
 		return nPr;
 	}
+	
+	public static void setIncompleteLF( boolean v ) {
+		incompleteLF=v;
+	}
     
 	static void copy (CodeUnit uc, int insP) throws Exc {
 		for ( int i = 0; i < uc.numInstr(); i++ ){
@@ -64,9 +69,7 @@ public class Linker {
 				throw new Exc_Sem(ErrorType.LARGE_CODE, " Internal: increase the size of CODE in Exec > "
 						+Exec.getCS() + " for Argument EXECCS");
 			Instruction uc_i= uc.code.get(i);
-			if (    uc_i.getOperator() == Operator.CALL || 
-					uc_i.getOperator() == Operator.PUSHF ) 
-//					(uc_i.getOperator() == Operator.PUSHF && uc.code.get(i+1).getOperator()!=Operator.FUNCF) ) 
+			if ( uc_i.getOperator() == Operator.PUSHF ) 
 				modCall(uc_i, uc_i.getOperator()); 
 			else
 				if ( uc_i.getOperator() == Operator.START ||
@@ -78,8 +81,8 @@ public class Linker {
 					nPr++; 
 				}
 				else
-					if ( Instruction.isJumpOperator(uc_i.getOperator() ) &&
-							uc_i.getOperator() != Operator.CALL ) {
+					if ( Instruction.isJumpOperator(uc_i.getOperator() ) || 
+							uc_i.getOperator() == Operator.PUSHF) {
 						if ( uc_i.getOperator() == Operator.JUMP && 
 								uc_i.getComment()!=null &&!uc_i.getComment().isEmpty() &&
 										uc_i.getComment().startsWith("->")	)
@@ -92,7 +95,7 @@ public class Linker {
 					}
 					else {
 						Exec.modInstruction(nPr, new Instruction(uc_i.getOperator(), 
-								uc_i.getOperand()));
+								uc_i.getOperand(),uc_i.getComment()));
 						nPr++;		
 					}
 		}
@@ -111,8 +114,11 @@ public class Linker {
 		}
 		else {
 			CodeUnit fCode = SymbH.fCode(iF);
-			if ( fCode == null )
-				throw new Exc_Sem(ErrorType.UNDEF_FUNCT, "-- Unexpected Error");
+			if ( fCode == null ) 
+				if ( incompleteLF )
+					throw new Exc_Sem(ErrorType.UNDEF_RETLABFUNC, "-- complete definition");
+				else
+					throw new Exc_Sem(ErrorType.UNDEF_FUNCT, "-- Unexpected Error");
 			entries.add(new FunctTable(iF,lastInsPoint, fCode));
 			Exec.modInstruction(nPr,new Instruction(op, lastInsPoint, instr.getComment()));
 			nPr++;

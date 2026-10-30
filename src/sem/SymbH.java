@@ -36,12 +36,18 @@ public class SymbH {
 	public static final int varType= 1; 
 	public static final int functType= 2; 
 
-	static boolean onGoingDef = false;
-	static boolean newDef = false;
+	static boolean onGoingDef = false; // true if a variable or a function or a lambda is being defined
+	static boolean newDef = false; // true if it is a new definition
+    static boolean currFactIdNameLabeled; // true if the current ID name has been extended with the implicit label
+	static String currFactIdNameFull; // the current ID name extended with the implicit label
 	static boolean currFactIdIsFormalParam = false;
 	static boolean currFactIdIsLocVar = false;
 	static boolean currFactIdIsLabGlob = false;
-	static boolean isLambda = false;
+	static boolean currFactIdSE = false;
+	static boolean isVarDef = false ; // true if a variable is being defined
+	static boolean isFunctDef = false; // true if a function is being defined
+	static boolean isLambdaDef = false; // true if a lambda function is being defined
+    // a lambda definition may occur 
 	static int iCurrFactID; // relative index of the current identified symbol
 	static int iCurrFactIDtot; // absolute index of the current identified symbol
 	static int arityCurrFunct; // arity of the current identified function
@@ -52,19 +58,21 @@ public class SymbH {
 	static LambdaFunctInfo currLambdaFunct; 
 	static String currLabel;
 	static String currLabelComment;
-	static boolean isVarDef, isFunctDef;
 
 	public static boolean is_FunctDef() {
 		return isFunctDef;
 	}
 	
 	public static boolean is_Lambda() {
-		return isLambda;
+		return isLambdaDef;
 	}
 	
 	public static void startFunctDef ( String idN, boolean hasLabel, String label ) throws Exc {
+		if (isLabel(idN))
+			throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, ": "+idN+
+					" has previously defined as label");		
 		onGoingDef = true; 
-		isLambda = false;
+		isLambdaDef = false;
 		isVarDef=false;
 		isFunctDef=true;
 		SymbolTableH.startLambdaFuncts();
@@ -74,15 +82,18 @@ public class SymbH {
 		if ( !newDef && SymbolTableH.tSymb(iPrecDef)!=functType )
 			throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, " "+idN+
 					" has previously defined as variable");
-		if ( newDef && hasLabel )
-			throw new Exc_Sem(ErrorType.UNDEF_LABEL, " "+label);
+		if ( newDef && hasLabel ) // labeled functions must be previously defined
+			throw new Exc_Sem(ErrorType.UNDEF_LABFUNC, " "+idN);
 	}
 
 	public static void startVarDef ( String idN, boolean hasLabel, String label ) throws Exc {
+		if (isLabel(idN))
+			throw new Exc_Sem(ErrorType.WRONG_VAR_DEF, ": "+idN+
+					" has previously defined as label");		
 		isVarDef=true;
 		isFunctDef=false;
 		onGoingDef = true; 
-		isLambda = false;
+		isLambdaDef = false;
 		SymbolTableH.startLambdaFuncts();
 		currDef = new Symbol(idN,hasLabel,label,varType);
 		iPrecDef = SymbolTableH.searchID(idN);
@@ -95,6 +106,9 @@ public class SymbH {
 	}
 
 		public static void startLabelDef ( String label ) throws Exc {
+		if (SymbolTableH.searchID(label) >=0)
+			throw new Exc_Sem(ErrorType.WRONG_LABEL_DEF, ": "+label+
+					" has previously defined as variable or function");		
 		currLabel = label; currLabelComment=null;
 		int iL=SymbolTableH.indLabel(label);
 		newDef = iL>=0? false: true;
@@ -107,13 +121,13 @@ public class SymbH {
 	}
 	
 	public static void startLambda ( ) throws Exc {
-		if ( isLambda )
+		if ( isLambdaDef )
 			throw new Exc_Sem(ErrorType.WRONG_LAMBDA, 
 					" - a lambda function cannot be defined inside another lambda function");
-		isLambda=true;
+		isLambdaDef=true;
 		if (isFunctDef)
 			currLambdaFunct = new LambdaFunctInfo(FunctInfo.currParmsIds,
-					currDef.finfo.pTs, currDef.finfo.pFn);
+					currDef.finfo.hasSideEffect,currDef.finfo.pTs, currDef.finfo.pFn);
 		else {
 			currLambdaFunct = new LambdaFunctInfo();
 		}
@@ -142,26 +156,57 @@ public class SymbH {
 	public static int nFuncts () {
 		return SymbolTableH.nFuncts();
 	}
-	public static void addLabFunct ( String idN, boolean se, int arity ) throws Exc {
+	
+	public static void startAddLabFunct ( String idN, boolean se ) throws Exc {
 		String idN_full = currLabel+"."+idN;
 		// check whether the labeled function is duplicated	in the current label definition
 		if ( SymbolTableH.searchCurrLabID(idN) >= 0 ) 
-			throw new Exc_Sem(ErrorType.DUPL_LAB_VAR_FUNCT, " "+idN_full);
+			throw new Exc_Sem(ErrorType.DUPL_LAB_VAR_FUNCT, " "+idN_full);	
+		SymbolTableH.initLabFunct(idN_full,se);
+	}
+	
+	public static void addVarParLabFunct (  ) throws Exc {
+		SymbolTableH.addVarParamLabFunct();
+	}
+
+	public static void addFuncParLabFunct ( int arity ) throws Exc {
+		SymbolTableH.addFuncParamLabFunct(arity);
+	}
+
+	public static void addFuncRetLabFunct ( int arity ) throws Exc {
+		SymbolTableH.addFuncRetLabFunct(functType, arity);
+	}
+
+	public static void closeLabFunctDef ( String idN, boolean se ) throws Exc {
+		String idN_full = currLabel+"."+idN;
 		int indVarFunc=-1; // symbol index
 		if ( !newDef ) { // existing label  
 			indVarFunc= SymbolTableH.searchID(idN_full);
 			if ( indVarFunc >= 0 ) {
 				if ( SymbolTableH.tSymb(indVarFunc) != functType )
-					throw new Exc_Sem(ErrorType.WRONG_LAB_FUNCT, " "+idN_full);					
-				if ( SymbolTableH.tSymb(indVarFunc) != functType )
-					throw new Exc_Sem(ErrorType.WRONG_LAB_FUNCT, " "+idN_full);					
+					throw new Exc_Sem(ErrorType.WRONG_LAB_FUNCT, " "+idN_full);	
+				int prevArity = SymbolTableH.symbols.get(indVarFunc).finfo.nP();
+				if ( prevArity != SymbolTableH.currLabFuncFinfo.nP() )
+					throw new Exc_Sem(ErrorType.WRONG_ARITY_LAB_FUNCT, " "+prevArity);
+				for ( int i=0; i<prevArity; i++ ) {
+					int prevTypePar =SymbolTableH.symbols.get(indVarFunc).finfo.typePar(i);
+					int prevArityFunctPar=SymbolTableH.symbols.get(indVarFunc).finfo.arityFunctPar(i);
+					if ( prevTypePar!=SymbolTableH.currLabFuncFinfo.typePar(i) ||
+							prevArityFunctPar!=SymbolTableH.currLabFuncFinfo.arityFunctPar(i))
+						throw new Exc_Sem(ErrorType.WRONG_FPARAM_LAB_FUNCT, " - parameter: "+i);					
+				}					
+				if ( SymbolTableH.symbols.get(indVarFunc).finfo.retT==functType )
+					throw new Exc_Sem(ErrorType.WRONG_FRET_LAB_FUNCT, " "+idN_full);	
+				boolean prevSe = SymbolTableH.symbols.get(indVarFunc).finfo.hasSideEffect;
+				if ( prevSe != se )
+					throw new Exc_Sem(ErrorType.WRONG_SE_LAB_FUNCT, " "+prevSe);					
 			}
 		}
 		SymbolTableH.addCurrLabVarFuncts(idN);
 		if ( indVarFunc < 0 ) 
-			SymbolTableH.addLabFunct(idN_full, currLabel,idN_full,se,arity);
-		else
-			SymbolTableH.addPrevLabFunct ( indVarFunc, idN_full, arity );
+			SymbolTableH.addLabFunct(idN_full, currLabel,idN_full,se);
+//		else 
+//			SymbolTableH.addPrevLabFunct ( indVarFunc, idN_full, arity );
 	}		
 	
 	public static int addLabVar ( String idN ) throws Exc {
@@ -202,13 +247,11 @@ public class SymbH {
 			return -1;
 		return SymbolTableH.tSymb(j);
 	}
-	
-	
+		
 	public static void commitLabDef ( ) throws Exc {
 		SymbolTableH.endLabVarFuncts(currLabel,newDef,currLabelComment);
 		onGoingDef = false;
 		newDef = false; 
-		//hasCurrLabel = false;
 	}
 	
 	public static int indCurrDef () {
@@ -227,6 +270,7 @@ public class SymbH {
 			}
 			else {
 				SymbolTableH.symbols.get(iPrecDef).finfo.code=currDef.finfo.code;
+				SymbolTableH.symbols.get(iPrecDef).finfo.isDefComplete=true;
 				SymbolTableH.symbols.get(iPrecDef).finfo.modFunctSource(s);
 				SymbolTableH.symbols.get(iPrecDef).finfo.modFunctComment(currDef.finfo.functComment());
 			}
@@ -255,14 +299,22 @@ public class SymbH {
 	static CodeUnit fCode ( int iF ) { // called by Linker
 		if ( iF >= 0 ) {
 			int i = SymbolTableH.searchF(iF);
-			if ( i >= 0 )
-				return SymbolTableH.symbols.get(i).finfo.code;
+			if ( i >= 0 ) {
+				FunctInfo tfInfo  = SymbolTableH.symbols.get(i).finfo;
+				if ( tfInfo.isDefComplete )
+					return tfInfo.code;
+				else {
+					Linker.setIncompleteLF(true);
+					return null;
+				}
+			}
 		}
 		else {
 			int k = -iF-1;
 			if (k < SymbolTableH.nLambdaFuncts ) 
 				return SymbolTableH.lambdaFuncts.get(k).code;
 		}
+		Linker.setIncompleteLF(false);
 		return null;
 	}
 		
@@ -278,6 +330,10 @@ public class SymbH {
 		else 
 			return SymbolTableH.nVar;
 	}
+	public static int indLab(String label) {
+			return SymbolTableH.indLabel(label);
+	}
+	
 	public static boolean isParam () {
 		return currFactIdIsFormalParam;
 	}
@@ -306,11 +362,19 @@ public class SymbH {
 		currLambdaFunct.code = uc;
 		currLambdaFunct.source = s;
 		SymbolTableH.addLambdaFunc(currLambdaFunct);
-		isLambda = false;
+		isLambdaDef = false;
 	}
+	public static boolean isLambdaDef() {
+		return isLambdaDef;
+	}
+	
+	public static int numFuncParLambda() {
+		return currLambdaFunct.nFunctParms;
+	}
+	
 	public static void startComp ( ) {
 		onGoingDef = false; 
-		isLambda = false;
+		isLambdaDef = false;
 		isVarDef=false;
 		isFunctDef=false;
 		SymbolTableH.startLambdaFuncts();
@@ -356,12 +420,12 @@ public class SymbH {
 			int j = SymbolTableH.iVarFunc(iPrecDef);
 			int precT = Exec.typeGV(j);
 			if ( precT != Exec.ListT && precT != Exec.JsonT )
-				throw new Exc_Sem(ErrorType.WRONG_LIST_JSON_USE, 
+				throw new Exc_Sem(ErrorType.VAR_NOT_LIST_JSON, 
 						"-- the identifier has been previously defined as "+Exec.types[precT]);
 			return precT;
 		}
 		else
-			throw new Exc_Sem(ErrorType.WRONG_LIST_JSON_USE, 
+			throw new Exc_Sem(ErrorType.VAR_NOT_DEF, 
 					"-- the new identifier cannot be updated");			
 	}
 	
@@ -421,7 +485,8 @@ public class SymbH {
 	
 	public static void addPar ( String idN, int type, int arity ) throws Exc {
 		if ( !idN.equals("_") ) {
-			if ( idN.equals(currDef.idSymb) )
+			String idNLab = currDef.hasLabel? currDef.label+"."+idN: idN; 
+			if ( currDef.idSymb.equals(idNLab) )
 				throw new Exc_Sem(ErrorType.DUPL_ID, 
 						"-- parameter name "+idN+" equal to function name");
 			if ( FunctInfo.searchCurrParId(idN) >= 0 )
@@ -456,12 +521,13 @@ public class SymbH {
 	
 	public static void addParLambda ( String idN ) throws Exc {
 		if ( !currLambdaFunct.addVarParam(idN) )
-			throw new Exc_Sem(ErrorType.DUPL_ID, 
+			throw new Exc_Sem(ErrorType.DUPL_LAMB_ID, 
 			"-- parameter name "+idN+" equal to the name of a previous parameter");
 	}
 
 	public static void addLoc ( String idN ) throws Exc {
-		if ( idN.equals(currDef.idSymb) )
+		String idNLab = currDef.hasLabel? currDef.label+"."+idN: idN; 
+		if ( currDef.idSymb.equals(idNLab) )
 			throw new Exc_Sem(ErrorType.DUPL_ID, 
 					"-- local variable name "+idN+" equal to function name");
 		if ( FunctInfo.searchCurrParId(idN) >= 0 )
@@ -476,49 +542,143 @@ public class SymbH {
 	public static boolean useFunctParams ( ) {
 		return currLambdaFunct.useFunctParms;
 	}
-	public static int setCurrID ( String idN, boolean hasLabel, String label, 
+	
+	public static boolean isIdNameLabeled () {
+		return currFactIdNameLabeled;
+	}
+	public static String idNameLabeled () {
+		return currFactIdNameFull;
+	}
+	public static int setCurrID ( String idN, boolean se, boolean hasLabel, String label, 
 								boolean setLabel, String setLabelID ) throws Exc {
+		currFactIdNameLabeled = false;
 		currFactIdIsFormalParam = false;
-		currFactIdIsLocVar = false; currFactIdIsLabGlob = false;
-		if ( isLambda ) { // case of an on-going lambda function definition
+		currFactIdIsLocVar = false; 
+		currFactIdIsLabGlob = false;
+		currFactIdSE=se;
+		if ( isLambdaDef ) { // case of an on-going lambda function definition
+			// only parameters are visible
 			// check whether the ID is an extended lambda parameter
 			// i.e., a lambda parameter or a parameter of the function hosting the lambda definition
 			int i = currLambdaFunct.searchCurrParId(idN);
 			if ( i >= 0 ) { // is an extended lambda parameter
 				currFactIdIsFormalParam = true;
-				iCurrFactID = i;
+				iCurrFactID = i;	
 				if ( i >= currLambdaFunct.nFunctParms ) // it is a lambda parameter
 					return varType; // it cannot be a function
-				else { // it is hosting function parameter
+				else { // it is a hosting function parameter
 					currLambdaFunct.setUseFunctParms();
 					int typePar = currLambdaFunct.typePar(i);
 					if ( typePar == functType ) {
+						if (currLambdaFunct.seFunctDef())
+							throw new Exc_Sem(ErrorType.SE_LAMBDA, " the function parameter "+idN+
+									" belongs to a function with side effects");
 						arityCurrFunct = currLambdaFunct.arityFunctPar(i);
 						retTypeCurrFunct = varType;
+						currFactIdSE=false;
 					}
 					return typePar;					
 				}
 			}
-			int j = SymbolTableH.searchID(idN);
-			if ( j >= 0 ) // the symbol is a function (ok) or a global variable (nok)
-				if ( SymbolTableH.symbols.get(j).tSymb == functType ){
-					// the symbol is a function
-					iCurrFactID = SymbolTableH.symbols.get(j).iVarFunc;
-					iCurrFactIDtot = j; 
-					retTypeCurrFunct=SymbolTableH.finfo_retType(j);
-					retArityCurrFunct=SymbolTableH.finfo_nP(j);
-					return functType;
+			if ( isFunctDef ) { // the function hosting the lambda definition cannot be called
+				String idn_full= currDef.hasLabel && !hasLabel? currDef.label+"."+idN: idN;				
+				if ( currDef.idSymb.equals(idn_full) ) 
+					throw new Exc_Sem(ErrorType.INV_FUNC, " - function being defined "+idn_full+
+							" cannot be called in a lambda definition");					
+				if ( !hasLabel ) {
+					for ( int j=0; j < FunctInfo.nCurrUsedLabels(); j++ ) {
+						// search for labeled variable/function with implicit label
+						String currLab = FunctInfo.currUsedLabels.get(j);
+						String idN_full = currLab+"."+idN;
+						i = SymbolTableH.searchID((idN_full));
+						if ( i >= 0 ) { // it is a labeled variable/function with implicit label
+							currFactIdNameLabeled=true;
+							currFactIdNameFull=idN_full;
+							if ( SymbolTableH.symbols.get(i).tSymb == varType ) 
+								throw new Exc_Sem(ErrorType.INV_VAR, " "+idN);
+							else {
+								if (SymbolTableH.symbols.get(i).finfo.hasSideEffect )
+			 	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+			 	 							 " in the definition of a lambda function: "+idN_full);	 					 
+								return setCurrID_Funct(i);
+							}
+						}		
+					}
+					if ( setLabel )  {
+						 idn_full = setLabelID+"."+idN;
+						 if ( SymbH.iSymb(idn_full)>=0 )  {
+							 // the labeled ID exists and overrides unlabeled ID
+							 idN=idn_full; 
+							 currFactIdNameLabeled=true;
+							 currFactIdNameFull=idn_full;
+						 }
+					 }
+					int j = SymbolTableH.searchID(idN);
+					if ( j >= 0 ) 
+						if ( SymbolTableH.symbols.get(j).tSymb == functType ) {
+							if (SymbolTableH.symbols.get(j).finfo.hasSideEffect )
+		 	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+		 	 							 " in the definition of a lambda function: "+idN);	 					 
+								return setCurrID_Funct(j);
+						}
+						else
+							throw new Exc_Sem(ErrorType.INV_VAR, " "+idN);
+					j = FunctInfo.searchCurrLocId(idN);
+					if ( j >= 0 )  // is a local variable
+						throw new Exc_Sem(ErrorType.INV_VAR, " "+idN);
+				  }					
+				else { // hasLabel is true: case of labeled global variable or labeled function
+					int j = SymbolTableH.searchID(idN);
+					if (j<0)
+						return undefID;	
+					if ( SymbolTableH.tSymb(j)== functType) {
+						if (SymbolTableH.symbols.get(j).finfo.hasSideEffect )
+		 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+		 							 " in the definition of a lambda function: "+idN);	 					 
+						return setCurrID_Funct(j);
+					}
+					else 
+						throw new Exc_Sem(ErrorType.INV_LABVAR, " "+idN);
 				}
-				else // global variable are not visible inside a lambda definition
-					throw new Exc_Sem(ErrorType.INV_VAR, ": "+idN);
-//			return undefID;			
-		}	// end lambda			
+			}
+			// functions without side effects are visible while global variables are not
+			if ( setLabel && !hasLabel ) { // the usage of implicit label is set
+				String idN_full = setLabelID+"."+idN;
+				 if ( SymbH.iSymb(idN_full)>=0 )  {
+					 // the labeled ID exists and overrides unlabeled ID
+					 idN=idN_full; 
+					 currFactIdNameLabeled=true;
+					 currFactIdNameFull=idN_full;
+				 }
+			 };
+			// idN is either a function (OK) or a global variable (noOK)
+			int j = SymbolTableH.searchID(idN);
+			if ( j >= 0 ) {
+				int typeSymb=SymbolTableH.symbols.get(j).tSymb;
+				if ( typeSymb ==functType ) {
+					if (SymbolTableH.symbols.get(j).finfo.hasSideEffect )
+	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+	 							 " in the definition of a lambda function: "+idN);	 					 
+					return setCurrID_Funct(j);
+				}
+				else 
+					throw new Exc_Sem(ErrorType.INV_VAR, " "+idN);
+			}
+			return undefID;
+		}	// end isLambda			
 		
-		if ( onGoingDef && currDef.tSymb == functType ) {
-			// on-going function definition			
-			if ( currDef.idSymb.equals(idN) || (!hasLabel && currDef.hasLabel && 
-					currDef.idSymb.equals(currDef.label+"."+idN)) ) { 
+		// on-going function definition: 
+		// all functions are visible while global variables are not unless they are labeled with a label enabling visibility
+		// function parameters and local variables are visible
+		if ( isFunctDef ) {
+			String idn_full= currDef.hasLabel && !hasLabel? currDef.label+"."+idN: null;
+			boolean isIdN= currDef.idSymb.equals(idN);
+			if ( isIdN || (!hasLabel && currDef.hasLabel && currDef.idSymb.equals(idn_full)) ) { 
 				// recursive call of the function that is being defined
+				if ( !isIdN ) {
+					 currFactIdNameLabeled=true;
+					 currFactIdNameFull=idn_full;					
+				}
 				if ( newDef ) {
 					iCurrFactID = SymbolTableH.nFunct;
 					arityCurrFunct=currDef.finfo.nP();
@@ -535,7 +695,7 @@ public class SymbH {
 				return functType;
 			}
 			if ( !hasLabel ) {
-				int i = FunctInfo.searchCurrParId(idN);
+				int i = FunctInfo.searchCurrParId(idN); 
 				if ( i >= 0 ) { // is a parameter
 					currFactIdIsFormalParam = true;
 					iCurrFactID = i;
@@ -555,69 +715,97 @@ public class SymbH {
 				for ( int j=0; j < FunctInfo.nCurrUsedLabels(); j++ ) {
 					// search for labeled variable/function with implicit label
 					String currLab = FunctInfo.currUsedLabels.get(j);
-					i = SymbolTableH.searchID((currLab+"."+idN));
+					String idN_full = currLab+"."+idN;
+					i = SymbolTableH.searchID((idN_full));
 					if ( i >= 0 ) { // it is a labeled variable/function with implicit label
+						currFactIdNameLabeled=true;
+						currFactIdNameFull=idN_full;
 						if ( SymbolTableH.symbols.get(i).tSymb == varType ) {
 							if (!currDef.finfo.hasSideEffect)
-		 	 					 throw new Exc_Sem(ErrorType.GLOB_VAR_IN_FUNCT, " without side effects");	 					 
+		 	 					 throw new Exc_Sem(ErrorType.GLOB_VAR_NO_SE_FUNCT, " without side effects: "+idN_full);	 					 
 							iCurrFactID = SymbolTableH.symbols.get(i).iVarFunc;
 							iCurrFactIDtot = i; currFactIdIsLabGlob = true;
 							return varType;
 						}
-						else
+						else {
+							if (!currDef.finfo.hasSideEffect && SymbolTableH.symbols.get(i).finfo.hasSideEffect )
+		 	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+		 	 							 " in the definition of a function without side effects: "+idN_full);	 					 
 							return setCurrID_Funct(i);
+						}
 					}		
 				}
-				// idN must be a function different from the function being defined 
+				// idN cannot be a var but a function (different from the function being defined) 
+				 if ( setLabel )  {
+					 idn_full = setLabelID+"."+idN;
+					 if ( SymbH.iSymb(idn_full)>=0 )  {
+						 // the labeled ID exists and overrides unlabeled ID
+						 idN=idn_full; 
+						 currFactIdNameLabeled=true;
+						 currFactIdNameFull=idn_full;
+					 }
+				 }
 				int j = SymbolTableH.searchID(idN);
 				if ( j >= 0 ) 
-					if ( SymbolTableH.symbols.get(j).tSymb == functType )
+					if ( SymbolTableH.symbols.get(j).tSymb == functType ) {
+						if (!currDef.finfo.hasSideEffect && SymbolTableH.symbols.get(j).finfo.hasSideEffect )
+	 	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+	 	 							 " in the definition of a function without side effects: "+idN);	 					 
 							return setCurrID_Funct(j);
+					}
 					else
-						throw new Exc_Sem(ErrorType.INV_VAR, ": "+idN);
+						throw new Exc_Sem(ErrorType.INV_VAR, " "+idN);
+				else // the symbol has not been defined					
+					return undefID;	
 			}
-			else { // case of labeled global variable or labeled function
+			else { // hasLabel is true: case of labeled global variable or labeled function
 				int j = SymbolTableH.searchID(idN);
 				if (j<0)
-					throw new Exc_Sem(ErrorType.UNDEF_LABVAR, ": "+idN);
+					return undefID;	
 				if ( SymbolTableH.tSymb(j)== functType) {
+					if (!currDef.finfo.hasSideEffect && SymbolTableH.symbols.get(j).finfo.hasSideEffect )
+	 					 throw new Exc_Sem(ErrorType.WRONG_SIDE_EFFECT, 
+	 							 " in the definition of a function without side effects: "+idN);	 					 
 					return setCurrID_Funct(j);
 				}
 				else {
 					int k = FunctInfo.searchCurrUsedLabId(label);
 					if ( k < 0 ) 
-						throw new Exc_Sem(ErrorType.UNDEF_INV_LABEL, ": "+label);
+						throw new Exc_Sem(ErrorType.INV_LABVAR, " "+idN);
 					iCurrFactID = SymbolTableH.symbols.get(j).iVarFunc;
 					iCurrFactIDtot = j; currFactIdIsLabGlob = true;
 					return varType;
 				}
 			}
 		}
-		String idN_full = null;
-		 if ( setLabel && !hasLabel ) { // the usage of implicit label is set
-			 idN_full = setLabelID+"."+idN;
-			 if ( SymbH.isLabel(setLabelID) && SymbH.iSymb(idN_full)>=0)  
-				 // the labeled ID exists
+
+		// case of variable definition or query computation: all global variables are visible
+		if ( setLabel && !hasLabel ) { // the usage of implicit label is set
+			String idN_full = setLabelID+"."+idN;
+			 if ( SymbH.iSymb(idN_full)>=0 )  {
+				 // the labeled ID exists and overrides unlabeled ID
 				 idN=idN_full; 
+				 currFactIdNameLabeled=true;
+				 currFactIdNameFull=idN_full;
+			 }
 		 };
 		// case of a global variable used in the rhs of the redefinition of the same variable
 		if ( onGoingDef && !newDef && currDef.idSymb.equals(idN) ) { 
 			iCurrFactID = SymbolTableH.symbols.get(iPrecDef).iVarFunc;
 			return varType;			
 		}
-		// idN is either a function or a global variable used in:
-		// (1) definition of a global variable or (2) query
+		// idN is either a function or 
+		// a global variable used in: (1) definition of a global variable or (2) query
 		int j = SymbolTableH.searchID(idN);
 		if ( j >= 0 ) {
-			iCurrFactID = SymbolTableH.symbols.get(j).iVarFunc;
-			iCurrFactIDtot = j; 
 			int typeSymb=SymbolTableH.symbols.get(j).tSymb;
-			if ( typeSymb ==functType ) {
-				arityCurrFunct=SymbolTableH.symbols.get(j).finfo.nP();
-				retTypeCurrFunct=SymbolTableH.symbols.get(j).finfo.retT;
-				retArityCurrFunct=SymbolTableH.symbols.get(j).finfo.retFn;										
+			if ( typeSymb ==functType ) 
+				return setCurrID_Funct(j);
+			else {
+				iCurrFactID = SymbolTableH.symbols.get(j).iVarFunc;
+				iCurrFactIDtot = j; 
+				return varType;
 			}
-			return typeSymb;
 		}
 		return undefID; 
 	}
@@ -677,7 +865,7 @@ public class SymbH {
 	}
 	
 	public static int nParCurrFunDef (  ) {
-		if ( isLambda )
+		if ( isLambdaDef )
 			return currLambdaFunct.nPall();
 		else
 			return currDef.finfo.nP();
@@ -708,7 +896,11 @@ public class SymbH {
 	public static int currArityFunctPar ( int iFormPar ) {
 		return currDef.finfo.arityFunctPar(iFormPar);
 	}
-	
+
+	public static boolean isCurrFactIdSE( ) {
+		return currFactIdSE;
+	}
+
 	public static boolean checkFunctRet( ) {
 		return currDef.finfo.typeRet()==functType;
 	}

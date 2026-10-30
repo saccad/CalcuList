@@ -37,18 +37,20 @@ public class SymbolTableH {
 	static int nCommLambdaFuncts = 0; // number of committed lambda functions
 	static int nLabels=0;
 	static int nCurrLabVarFuncts;
-	static int nPrevLabFuncts;
+//	static int nPrevLabFuncts;
 	static int nVarTmp; // including on-going defined labeled variables
 	static int nFunctTmp; // including on-going defined labeled functions
 	static int nSymbTmp;
 	public static ArrayList<Symbol> symbols = new ArrayList<Symbol>(symbolsInitCapacity);
 	public static ArrayList<LambdaFunctInfo> lambdaFuncts = new ArrayList<LambdaFunctInfo>(lambdaFunctsInitCapacity);
 	static ArrayList<String> labels= new ArrayList<String>(labelsInitCapacity); // labels
-	static ArrayList<String> labComments= new ArrayList<String>(labelsInitCapacity); // labels
-	static ArrayList<String> currLabVarFuncts= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
-	static ArrayList<Integer> currPrevLabFuncts= new ArrayList<Integer>(labelsInitCapacity); // labeled variables that are currently defined
-	static ArrayList<String> currPrevLabFunctNames= new ArrayList<String>(labelsInitCapacity); // labeled variables that are currently defined
-	static ArrayList<Integer> currPrevLabFunctArities= new ArrayList<Integer>(labelsInitCapacity); // labeled variables that are currently defined
+	static ArrayList<String> labComments= new ArrayList<String>(labelsInitCapacity); // stored label comments
+	static String CurrLabFuncIDfull;
+	static FunctInfo currLabFuncFinfo;
+	static ArrayList<String> currLabVarFuncts= new ArrayList<String>(labelsInitCapacity); // labeled variables/functions that are currently defined
+	//**static ArrayList<Integer> currPrevLabFuncts= new ArrayList<Integer>(labelsInitCapacity); // fcodes of labeled functions that are currently redefined
+	//**static ArrayList<String> currPrevLabFunctNames= new ArrayList<String>(labelsInitCapacity); // names of labeled functions that are currently redefined
+	//**static ArrayList<Integer> currPrevLabFunctArities= new ArrayList<Integer>(labelsInitCapacity); // arity of labeled functions that are currently redefined
 
 //	public static void printLambda() {
 //		System.out.println("** nL="+nLambdaFuncts+"  nCommLambdaFuncts="+nCommLambdaFuncts);
@@ -66,33 +68,63 @@ public class SymbolTableH {
 		nLambdaFuncts = nCommLambdaFuncts;
 	}
 	
-	static void initLabVarFuncts () {
+	static void initLabVarFuncts ( ) {
 		nSymbTmp=nSymb; nVarTmp=nVar; nFunctTmp=nFunct;
-		nCurrLabVarFuncts=0; nPrevLabFuncts=0;
+		nCurrLabVarFuncts=0; 
+		// nPrevLabFuncts=0;
 	}
 
-	static void addPrevLabFunct ( int iFunct, String idN_full, int arity ) throws Exc {
-		currPrevLabFuncts.add(nPrevLabFuncts, iFunct); 
-		currPrevLabFunctNames.add(nPrevLabFuncts, idN_full); 
-		currPrevLabFunctArities.add(nPrevLabFuncts, arity); 
-		nPrevLabFuncts++;	
+//	static void addPrevLabFunct ( int iFunct, String idN_full, int arity ) throws Exc {
+//		currPrevLabFuncts.add(nPrevLabFuncts, iFunct); 
+//		currPrevLabFunctNames.add(nPrevLabFuncts, idN_full); 
+//		currPrevLabFunctArities.add(nPrevLabFuncts, arity); 
+//		nPrevLabFuncts++;	
+//	}
+
+	static void initLabFunct ( String IdNfull, boolean se) throws Exc {
+		CurrLabFuncIDfull=IdNfull;
+		currLabFuncFinfo= new FunctInfo (se);
+	}
+
+	static void addVarParamLabFunct ( ) throws Exc {
+		currLabFuncFinfo.addVarParam("_"); 
+	}
+
+	static void addFuncParamLabFunct ( int arity ) throws Exc {
+		currLabFuncFinfo.addFunctParam("_",arity); 
+	}
+
+	static void addFuncRetLabFunct ( int fType, int arity ) throws Exc {
+		currLabFuncFinfo.setRet(fType,arity); 
 	}
 
 	static void addCurrLabVarFuncts ( String idN ) throws Exc {
 		currLabVarFuncts.add(nCurrLabVarFuncts, idN); nCurrLabVarFuncts++;	
 	}
 
-	static void addLabFunct ( String idN, String label, String idN_full, boolean se, int arity ) throws Exc {
+	static void addLabFunct ( String idN, String label, String idN_full, boolean se ) throws Exc {
 		symbols.add(nSymbTmp, new Symbol(idN,true,label,SymbH.functType));
 		symbols.get(nSymbTmp).iVarFunc= nFunctTmp;
-		symbols.get(nSymbTmp).finfo = new FunctInfo(se); 
-		symbols.get(nSymbTmp).finfo.code = Transl.nullBodyFunct (idN_full, nFunctTmp,arity); 
+		int arity= currLabFuncFinfo.nP();
+		boolean hasFuncRet= currLabFuncFinfo.typeRet()==SymbH.functType;
+		currLabFuncFinfo.code = Transl.nullBodyFunct (idN_full, nFunctTmp,arity,hasFuncRet); 
 		String source = idN_full+"("; 
-		for (int i=0; i<arity; i++) {
-			symbols.get(nSymbTmp).finfo.addVarParam("_");
-			source += i==0? "_": ", _";
+		for (int i=0; i<arity; i++) 
+			if ( currLabFuncFinfo.typePar(i)==SymbH.varType) 
+				source += i==0? "_": ", _";
+			else {
+				int pArity= currLabFuncFinfo.arityFunctPar(i);
+				source += i==0? "_/"+pArity: ", _/"+pArity;
+			}
+		if ( currLabFuncFinfo.typeRet()==SymbH.functType ) {
+			source += ")/"+currLabFuncFinfo.arityRet() +
+			          " -> <<incomplete>>";
+			currLabFuncFinfo.isDefComplete=false;
 		}
-		symbols.get(nSymbTmp).finfo.source = source+") -> null"; 
+		else
+			source += ") -> null";
+		currLabFuncFinfo.source=source;
+		symbols.get(nSymbTmp).finfo = currLabFuncFinfo; 		
 		nSymbTmp++; nFunctTmp++;
 	}
 	
@@ -106,18 +138,18 @@ public class SymbolTableH {
 		nVar= nVarTmp;
 		nFunct=nFunctTmp;
 		nSymb= nSymbTmp;
-		for ( int i=0; i<nPrevLabFuncts; i++ ) {
-			int k= currPrevLabFuncts.get(i);
-			symbols.get(k).finfo.code = 
-					Transl.nullBodyFunct (currPrevLabFunctNames.get(i), currPrevLabFuncts.get(i),currPrevLabFunctArities.get(i)); 
-			String source = currPrevLabFunctNames.get(i)+"("; 
-			int n= symbols.get(k).finfo.nP();
-			for (int j=0; j<n; j++) {
-				symbols.get(k).finfo.addVarParam("_");
-				source += j==0? "_": ", _";
-			}
-			symbols.get(k).finfo.source = source+") -> null"; 
-		}		
+		// the codes of previous labeled functions are not modified anymore (commented below) 
+//		for ( int i=0; i<nPrevLabFuncts; i++ ) {
+//			int k= currPrevLabFuncts.get(i);
+//			symbols.get(k).finfo.code = 
+//					Transl.nullBodyFunct (currPrevLabFunctNames.get(i), 
+//							symbols.get(k).iVarFunc,currPrevLabFunctArities.get(i)); 
+//			String source = currPrevLabFunctNames.get(i)+"("; 
+//			int n= symbols.get(k).finfo.nP();
+//			for (int j=0; j<n; j++) 
+//				source += j==0? "_": ", _";
+//			symbols.get(k).finfo.source = source+") -> null"; 
+//		}		
 		if ( isNewLabel ) {
 			labels.add(nLabels,label); labComments.add(nLabels,comment);
 			nLabels++;
@@ -284,6 +316,13 @@ class Symbol {
 	int tSymb; // 0 = no type, 1 = variable, 2 = function
 	int iVarFunc;
 	FunctInfo finfo;
+	public String toString() {
+		return "idSymb: "+ idSymb +
+				"\n label: "+ label +
+				"\n hasLabel: "+ hasLabel +
+				"\n tSymb: "+ tSymb +
+				"\n iVarFunc: "+ iVarFunc;
+	}
 	Symbol ( String idS ) {
 		idSymb = idS;
 		label = ""; hasLabel=false; 

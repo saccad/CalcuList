@@ -22,18 +22,37 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package sem;
 
+import java.util.ArrayList;
+
 import error.Exc;
 import exec.Exec;
+import exec.Instruction.Operator;
 
 public class PrintCode {
 
 	public static void printListing (CodeUnit uc ) {
+		int initCapacityLambdaInd=20;
+		ArrayList<Integer> lambdaInd=new ArrayList<Integer>(initCapacityLambdaInd);
 		System.out.print("\n------CODE UNIT------\n");
 		for (int i = 0; i < uc.numInstr(); i++) {
 			System.out.print(i+"\t"+uc.instr(i).decode()+"\n" );
+			if (uc.instr(i).getOperator()== Operator.PUSHF
+					&& uc.instr(i).getOperand() < 0 )
+				lambdaInd.add((int)uc.instr(i).getOperand());
 		}
-		System.out.print("---End of CODE UNIT---\n");		
-		
+		System.out.print("---End of CODE UNIT---\n");
+		for ( int i=0; i<lambdaInd.size(); i++ ) {
+			printLambda(lambdaInd.get(i));
+		}	
+	}
+	
+	public static void printLambda (int lambdaInd ) {
+		CodeUnit uc = SymbH.fCode(lambdaInd);
+		System.out.print("\n------LAMBDA UNIT------\n");
+		for (int i = 0; i < uc.numInstr(); i++) {
+			System.out.print(i+"\t"+uc.instr(i).decode()+"\n" );
+		}
+			System.out.print("---End of LAMBDA UNIT---\n");	
 	}
 
 	public static void printExecCode ( int nAbsoluteCode, int nInitCode ) throws Exc {

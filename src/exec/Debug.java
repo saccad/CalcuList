@@ -81,11 +81,11 @@ public class Debug {
 		FrameDebugHandler.addFrame(ind);
 	}
 	
-	public static String printType(int t){
-		if ( t < 0 || t > Exec.StringQF)
+	public static String printTypeT(int t){
+		if ( t < 0 || t > Exec.RefT )
 			 return "?";
 		else
-			 return Exec.types[t];
+			 return Exec.typesT[t];
 	}
 	
     static String printPointer( int X ) {
@@ -112,18 +112,19 @@ public class Debug {
 	    	  return;	    	  
 	      }
 	      System.out.println("======================");
-	      System.out.print("++ HEAP");
-	      System.out.println(" (1^ Garbage Element *-> "+printPointer(Exec.GP)+
-	    			  ", 1^ string *-> "+printPointer(Exec.FSPP)+")");
-	      int nStAdd=Exec.FSPP;
-	      int iStr=0;
-	      int iListEl=0;
-	      int iFieldVal = 0;
-	      int iJsonEl = 0;
-	      int iGarbEl = 0;
+	      System.out.println("++ HEAP");
+	      int nextStAdd=Exec.FSPP; // address of next string 
+	      int nextXAA = Exec.FXPAP; // address of next external argument array
+	      int iStr=0; // progressive number of current string
+	      int iListEl=0; // progressive number of current list triplet
+	      int iKeyVal = 0;
+	      int iJsonField = 0;
+	      int iGarbEl = 0; // progressive number of current garbage element
 	      int iDelEl = 0;
-	      int iDelField = 0;
-	      int iElem = 0;
+	      int iDelKeyVal = 0;
+	      int iElem = 0; // progressive number of current element of any type (up to nElem)
+	      int iArgArray=0; // progressive number of current external argument array
+	      int iFuncStackElem =0; // progressive number of FuncStack element
 	      boolean isGarbageEl;
 		  System.out.print("---------------");
 	      while ( i > Exec.HP && iElem <= nElem ) {
@@ -131,7 +132,7 @@ public class Debug {
 	    		  System.out.print("\n...skipping next heap elements...\n");
 	    	  else {
 			      isGarbageEl = false;
-		    	  if ( i==nStAdd || i==Exec.NSPP ) {
+		    	  if ( i==nextStAdd || i==Exec.NSPP ) { // print string
 		    		  boolean completeString = i!=Exec.NSPP;
 		    		  if ( completeString )
 		    			  System.out.println(" [String "+iStr+"]");
@@ -156,123 +157,178 @@ public class Debug {
 				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
 			    		  if ( Exec.MEM[i]==Exec.nullValue ) {
 			    			  System.out.println("\t* last string");
-			    			  nStAdd=Exec.nullValue; 
+			    			  nextStAdd=Exec.nullValue; 
 			    		  }
 			    		  else {
 			    			  System.out.println("\t*-> next string");
-			    			  nStAdd=(int)Exec.MEM[i];
+			    			  nextStAdd=(int)Exec.MEM[i];
 			    			  iStr++;
 			    		  }
 			    		  i--; 
 		    		  }
-		    	  }
-		    	  else 
-			    	  if ( Exec.MEM[i-2] < 0 ) { // field <value,key> (the link is negative)
-			    		  if ( Exec.MEM[i]==Exec.deletedNullValue && Exec.MEM[i-1]==Exec.NullT ) {
-			    			  System.out.println(" [Deleted Field-Value "+iDelField+"]");
-			    			  iDelField++;		    			  
-			    		  }
-			    		  else {
-			    			  System.out.println(" [Key-Value "+iFieldVal+"]");
-				        	  iFieldVal++;		    			  
-			    		  }
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-			    		  printValue(Exec.MEM[i], (int)Exec.MEM[i-1]);
-			    		  i--;
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-			        	  System.out.println("\t" +printType((int)Exec.MEM[i]));
-			    		  i--;
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-				    	  System.out.format("%-6d",-(int)Exec.MEM[i]);
-		        		  System.out.println("\t*->HEAP (key string)");
-			        	  i--;
-			    	  }
-			    	  else {
-			    		  int type = (int)Exec.MEM[i-1];
-			    		  if ( type == Exec.FieldT ) {
-			    			  System.out.println(" [Json Element "+iJsonEl+"]");
-			    			  iJsonEl++;
-			    		  }
-			    		  else 
-			    			  if( type==Exec.NoType ) {
-				    			  System.out.println(" [Garbage Element "+iGarbEl+"]");
-				    			  iGarbEl++;
-				    			  isGarbageEl=true;
-			    			  }
-			    			  else
-			    				  if ( type==Exec.NullT && Exec.MEM[i] == Exec.deletedNullValue ) {
-					    			  System.out.println(" [Deleted List Element "+iDelEl+"]");
-					    			  iDelEl++;
-			    				  }
-				    			  else {
-				    				  System.out.println(" [List Element "+iListEl+"]");
-				    				  iListEl++;		    			  
+		    	  } // end print string
+		    	  else {
+		    		  if ( i== nextXAA ) { // print external argument array
+		    			  nextXAA = (int)Exec.MEM[i-1];
+		    			  System.out.println(" [ArgArray "+iArgArray+"]");
+		    			  i = printArgArray(i);
+		    			  iArgArray++;
+		    		  } // end print external argument array
+		    		  else
+				    	  if ( Exec.MEM[i-2] < 0 ) { // print triplet Key-Value (the 3^ element is negative link)
+				    		  if ( Exec.MEM[i]==Exec.deletedNullValue && Exec.MEM[i-1]==Exec.NullT ) {
+				    			  System.out.println(" [Deleted Key-Value "+iDelKeyVal+"]");
+				    			  iDelKeyVal++;		    			  
+				    		  }
+				    		  else {
+				    			  System.out.println(" [Key-Value "+iKeyVal+"]");
+					        	  iKeyVal++;		    			  
+				    		  }
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+				    		  printValue(Exec.MEM[i], (int)Exec.MEM[i-1]);
+				    		  i--;
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+					    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+				        	  System.out.println("\t" +printTypeT((int)Exec.MEM[i]));
+				    		  i--;
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+					    	  System.out.format("%-6d",-(int)Exec.MEM[i]);
+			        		  System.out.println("\t*->HEAP (key string)");
+				        	  i--;
+				    	  } // end print triplet Key-Value
+			    		  else { // print json field or garbage element or list element or FuncStack element
+			    			  int type=(int)Exec.MEM[i-1];
+				    		  if ( type == Exec.FieldT ) { // print head of a json field
+				    			  System.out.println(" [Json Field "+iJsonField+"]");
+				    			  iJsonField++; 
+				    		  }
+				    		  else 
+				    			  if( type==Exec.GenT ) { // print head of a garbage element
+					    			  System.out.println(" [Garbage Element "+iGarbEl+"]");
+					    			  iGarbEl++;
+					    			  isGarbageEl=true;
 				    			  }
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-			    		  printValue(Exec.MEM[i], type);
-			    		  i--;
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-			        	  System.out.println("\t" +printType(type));
-			        	  i--;
-				    	  System.out.format("%05d",i);
-				    	  System.out.print(": ");
-				    	  System.out.format("%-6d",(int)Exec.MEM[i]);
-			        	  if ( type == Exec.FieldT ) {
-				        	  if ( Exec.MEM[i]==Exec.nullValue )
-				        		  System.out.println("\tend json");
-				        	  else
-				        		  System.out.println("\t*->next json element");
-			        	  }
-			    		  else 
-			    			  if ( isGarbageEl )
+				    			  else // print head of a function stack element
+				    	   			  if( type>=Exec.FuncT ) { // print head of a function stack element
+						    			  System.out.println(" [FuncStack Element "+iFuncStackElem+"]");
+						    			  iFuncStackElem++;
+					    			  }
+					    			  else // print head of a list element (possibly deleted)
+					     				  if ( type==Exec.NullT && Exec.MEM[i] == Exec.deletedNullValue ) {
+						    			  System.out.println(" [Deleted List Element "+iDelEl+"]");
+						    			  iDelEl++;
+					     				  }
+					     				  else {
+					     					  System.out.println(" [List Element "+iListEl+"]");
+					     					  iListEl++;		    			  
+					     				  }
+				    		  // print the first 2 components of json field or garbage element or list element
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+				    		  printValue(Exec.MEM[i], type);
+				    		  i--;
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+					    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+				        	  System.out.println("\t" +printTypeT(type));
+				        	  i--;
+					    	  System.out.format("%05d",i);
+					    	  System.out.print(": ");
+					    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+					    	  // print the third component 
+				        	  if ( type == Exec.FieldT ) { // case json field
 					        	  if ( Exec.MEM[i]==Exec.nullValue )
-			    					  System.out.println("\tend garbage list");
+					        		  System.out.println("\tend json");
 					        	  else
-			    					  System.out.println("\t*->next garbage element");
-			    			  else		    				  
-					        	  if ( Exec.MEM[i]==Exec.nullValue )
-					        		  System.out.println("\tend list");
-					        	  else
-					        		  System.out.println("\t*->next list element");
-			        	  i--;
-			    	  }
+					        		  System.out.println("\t*->next json field");
+				        	  }
+				    		  else 
+				    			  if ( isGarbageEl ) // case garbage element
+						        	  if ( Exec.MEM[i]==Exec.nullValue )
+				    					  System.out.println("\tend garbage list");
+						        	  else
+				    					  System.out.println("\t*->next garbage element");
+				    			  else	
+				    				  if ( type >= Exec.FuncT ) // FuncStack element
+				    					  if ( Exec.MEM[i]==Exec.nullValue )
+						    					  System.out.println("\tend FuncStack");
+								        	  else
+						    					  System.out.println("\t*->next FuncStack element");
+						    		else // case list element	    				  
+						    			if ( Exec.MEM[i]==Exec.nullValue )
+						    				System.out.println("\tend list");
+						    			else
+						    				System.out.println("\t*->next list element");
+				        	  i--;
+			    		  }
 		    	  }
+		      }
+
 	    	  iElem++;
     		  System.out.print("---------------");
 	      }
 	      System.out.println();
 	      System.out.println("======================");
 	}
+
+	static int printArgArray(int i) { // print an external argument array
+		  // print the length 
+		  int n=(int)Exec.MEM[i];
+		  System.out.format("%05d",i);
+		  System.out.print(": ");
+		  System.out.format("%-6d",n);
+		  System.out.println("\tlength");
+		  // print the pointer to the next external argument array
+		  i--;
+    	  System.out.format("%05d",i);
+    	  System.out.print(": ");
+    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+    	  if ( Exec.MEM[i]==Exec.nullValue )
+    		  System.out.println("\tend external argument arrays");
+    	  else
+    		  System.out.println("\t*->next external argument array");
+    	  // print value and type of each argument in the array
+		  for ( int k =2; k<n; k++) { 
+			  i--;
+	    	  System.out.format("%05d",i);
+	    	  System.out.print(": ");
+	    	  System.out.format("%-6d",(int)Exec.MEM[i]);
+	    	  if ( k%2==0 ) // print value
+	    		  System.out.println("\tvalue");
+	    	  else // print type
+	    		  System.out.println("\t"+printTypeT((int)Exec.MEM[i]));
+		  }
+		 return i-1;
+	}
 	
-	static void printOutput() {
+	static void printOutputD() {
 	      System.out.println("---------------");
 	      System.out.println("++ OUTPUT");
 	      int j0=0;
 	      for ( int j = j0; j < Exec.OP; j++ ) {
-	    	  if ( j % 2 == 0) {
+	    	  if ( j % 3 == 0) {
 	    		  System.out.println("---------------");
 	    		  int t = (int)Exec.OUTPUT[j+1];
-	    		  if ( t == Exec.CharQF )
-	    			  t=Exec.CharT;
-	    		  else
-	    			  if( t == Exec.StringQF || t== Exec.StringExcF )
-	    				  t=Exec.StringT;
 		    	  System.out.format("%05d",j);
 		    	  System.out.print(": ");
 	    		  printValue(Exec.OUTPUT[j],t);
+	    	  }
+	    	  else 
+	    	  if ( j % 3 ==1 )
+	    	  {
+		    	  System.out.format("%05d",j);
+		    	  System.out.print(": ");
+		    	  System.out.format("%-6d",(int)Exec.OUTPUT[j]);
+	    		  System.out.println("\t" +printTypeT((int)Exec.OUTPUT[j]));
 	    	  }
 	    	  else {
 		    	  System.out.format("%05d",j);
 		    	  System.out.print(": ");
 		    	  System.out.format("%-6d",(int)Exec.OUTPUT[j]);
-	    		  System.out.println("\t" +printType((int)Exec.OUTPUT[j]));
+	    		  System.out.println("\t"+"print option");	    		  
 	    	  }
 	       }
 	      System.out.println("---------------");				
@@ -288,7 +344,9 @@ public class Debug {
 
 	static boolean isStandardBP(int IPC ) {
     	if ( standardBP && ( Exec.CODE[IPC].getOperator() == Operator.START || 
-    			Exec.CODE[IPC].getOperator() == Operator.RETURN ))
+    			Exec.CODE[IPC].getOperator() == Operator.STARTX ||
+    			Exec.CODE[IPC].getOperator() == Operator.RETURN || 
+    			Exec.CODE[IPC].getOperator() == Operator.HALT) )
     		return true;
     	else
     		return false;
@@ -336,30 +394,42 @@ public class Debug {
     							System.out.println("\t'\\"+(int)v+"'");
     					}
     					else
-    						if ( t==Exec.TypeT || t==Exec.MetaTypeT)
-    							System.out.println("\t"+printType((int)v));
+    						if ( t==Exec.TypeT )
+    							System.out.println("\t"+printTypeT((int)v));
     						else
     							if ( t==Exec.RefT )
-    								System.out.println("\t*->STACK");
+    								System.out.println("\t*->MEM");
     							else
     								System.out.println("");
     }
 
 	static boolean printState ( int IPC ) {
 	  boolean debugAct = true;
+	  
+	  if ( debugSteps <= 0 && !Exec.BREAKPOINTS[IPC] && !isStandardBP(IPC)) {
+          iState++;
+          return debugAct;
+	  }
+      iDebugStep++;
+      if ( iDebugStep <= debugSteps ) {
+          iState++;
+          return debugAct;
+      }
+	  
 	  System.out.println("\n************");
 	  System.out.println(  " STATE "+iState);
 	  System.out.println("************");
 	  System.out.println(" FP = "+Exec.FP + " SP = " + 
-			  Exec.SP+ " HP = " + Exec.HP+ " OP = "+Exec.OP+ " CODEN = "+Exec.CODEN);
-	  System.out.println(" GP = "+Exec.GP+" FSPP = "+Exec.FSPP+" LSPP = "+Exec.LSPP+" NSPP = "+Exec.NSPP);
+			  Exec.SP+ " HP = " + Exec.HP+ " OP = "+Exec.OP+ " CODEN = "+Exec.CODEN+" GP = "+Exec.GP);
+	  System.out.println(" FSPP = "+Exec.FSPP+" FUSTP = "+Exec.FUSTP+" FXPAP = "+Exec.FXPAP+" CXPAP = "+Exec.CXPAP);
+
 	  Instruction instrC = Exec.CODE[IPC];
-	  if (instrC.getOperator() == Operator.CALLS ) 
+	  if (instrC.getOperator() == Operator.CALL ) 
 		  instrC.modComment(callsID);
 	  System.out.println(" Current Instruction: ["+IPC+"] "+instrC.decode());
 	  if ( Exec.IP >= 0 ) {
 		  instrC = Exec.CODE[Exec.IP];
-		  if (instrC.getOperator() == Operator.CALLS ) {
+		  if (instrC.getOperator() == Operator.CALL ) {
 			  callsID = Exec.CODE[(int)Exec.MEM[Exec.SP-1]].getComment().replaceFirst("\\*", "->()");
 			  instrC.modComment(callsID);
 		  }
@@ -376,14 +446,14 @@ public class Debug {
 	      if ( runCalcuList ) 
 	    	  	System.out.print(": \""+SymbolTableH.idGV(i)+"\"");
 	      System.out.println();
-    	  	  System.out.format("%05d",iStack);
-    	  	  System.out.print(": ");
-    	  	  printValue(Exec.MEM[iStack], (int) Exec.MEM[iStack+1]);
-    	  	  iStack++;
-    	  	  System.out.format("%05d: ",iStack);
-    	  	  System.out.format("%-6d",(int)Exec.MEM[iStack]);
-    	  	  System.out.println("\t"+printType((int)Exec.MEM[iStack]));
-    	  	  iStack++;   	  
+	  	  System.out.format("%05d",iStack);
+	  	  System.out.print(": ");
+	  	  printValue(Exec.MEM[iStack], (int) Exec.MEM[iStack+1]);
+	  	  iStack++;
+	  	  System.out.format("%05d: ",iStack);
+	  	  System.out.format("%-6d",(int)Exec.MEM[iStack]);
+	  	  System.out.println("\t"+printTypeT((int)Exec.MEM[iStack]));
+	  	  iStack++;    	  
       }
       int iUnit =1;
       while ( iStack <= Exec.SP ) {
@@ -409,7 +479,7 @@ public class Debug {
             	  iStack++;
             	  System.out.format("%05d: ",iStack);
             	  System.out.format("%-6d",(int)Exec.MEM[iStack]);
-            	  System.out.println("\t"+printType((int)Exec.MEM[iStack]));
+            	  System.out.println("\t"+printTypeT((int)Exec.MEM[iStack]));
 	    	   	  iStack++;  	  			  
     		  }
     		  else {
@@ -421,49 +491,44 @@ public class Debug {
       }
 	 System.out.println("====================");
       
-      if ( debugSteps > 0 || Exec.BREAKPOINTS[IPC] || isStandardBP(IPC)) {
-          iDebugStep++;
-	      if ( iDebugStep > debugSteps) {
-		      if (  Exec.MS-1 > Exec.HP  ) {
-			    	  System.out.println("\nPrint Heap? (Y/N)");
-			    	  char replay = debugReader.next().charAt(0);
-			    	  if ( replay == 'Y' || replay=='y')
-			    		  printHeap();
-		    	  }
-		    	  else
-		    		  System.out.println("\n++ EMPTY HEAP ++");
-			  if (  Exec.OP > 0  ) {
-				    	  System.out.println("\nPrint Output? (Y/N)");
-				    	  char replay = debugReader.next().charAt(0);
-				    	  if ( replay == 'Y' || replay=='y')
-				    		  printOutput();
-		    	  }
-		    	  else
-		    		  System.out.println("\n++ EMPTY OUTPUT ++");
-			  if (  Exec.CODEN > initCodeN  ) {
-		    	  		System.out.println("\nPrint the "+(Exec.CODEN - initCodeN)+" Lines of Code Added at Run Time? (Y/N)");
-		    	  		char replay = debugReader.next().charAt(0);
-		    	  		if ( replay == 'Y' || replay=='y')
-		    	  			printAddedCode(initCodeN,Exec.CODEN);
-			  }
-			  else
-				  System.out.println("\n++ NO CODE ADDED AT RUN TIME ++");
-			  
-		      System.out.println("\nNumber of steps before next pause? --enter 0 to go to next breakpoint, -1 to stop debugging");
-		      try {
-		    	  	debugSteps = debugReader.nextInt(); 
-		      }
-		      catch ( Exception e ) {
-			      System.out.println("Wrong input -- converted to 1");		    	  
-		    	  	  debugSteps = 1;
-		      }
-			      
-			  if ( debugSteps >= 0 )
-				  iDebugStep = 1;
-			  else 
-				   debugAct = false;
-	      }
+      if (  Exec.MS-1 > Exec.HP  ) {
+	    	  System.out.println("\nPrint Heap? (Y/N)");
+	    	  char replay = debugReader.next().charAt(0);
+	    	  if ( replay == 'Y' || replay=='y')
+	    		  printHeap();
+    	  }
+    	  else
+    		  System.out.println("\n++ EMPTY HEAP ++");
+	  if (  Exec.OP > 0  ) {
+		    	  System.out.println("\nPrint Output? (Y/N)");
+		    	  char replay = debugReader.next().charAt(0);
+		    	  if ( replay == 'Y' || replay=='y')
+		    		  printOutputD();
+    	  }
+    	  else
+    		  System.out.println("\n++ EMPTY OUTPUT ++");
+	  if (  Exec.CODEN > initCodeN  ) {
+    	  		System.out.println("\nPrint the "+(Exec.CODEN - initCodeN)+" Lines of Code Added at Run Time? (Y/N)");
+    	  		char replay = debugReader.next().charAt(0);
+    	  		if ( replay == 'Y' || replay=='y')
+    	  			printAddedCode(initCodeN,Exec.CODEN);
+	  }
+	  else
+		  System.out.println("\n++ NO CODE ADDED AT RUN TIME ++");
+	  
+      System.out.println("\nNumber of steps before next pause? --enter 0 to go to next breakpoint, -1 to stop debugging");
+      try {
+    	  	debugSteps = debugReader.nextInt(); 
       }
+      catch ( Exception e ) {
+	      System.out.println("Wrong input -- converted to 1");		    	  
+    	  	  debugSteps = 1;
+      }
+	      
+	  if ( debugSteps >= 0 )
+		  iDebugStep = 1;
+	  else 
+		   debugAct = false;
       iState++;
 	return debugAct;  
   }

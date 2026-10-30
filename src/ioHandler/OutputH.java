@@ -23,10 +23,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package ioHandler;
 
 import error.Exc;
+import sem.LambdaFunctInfo;
 import sem.SymbH;
 import sem.SymbolTableH;
 import exec.Debug;
 import exec.Exec;
+import exec.Instruction;
 import exec.PrintOutput;
 import synt.Lex.BIFType;;
 
@@ -34,8 +36,8 @@ public class OutputH {
 	  public static final String prompt = ">> ";
 	  public static final String promptF = ".. ";
 	  private static boolean isPrompt=true; // true if the previous line ends with semicolon
-	  static private String release = "4.4.1";
-	  static private String releaseDate = "February 1, 2022";
+	  static private String release = "5.0.0";
+	  static private String releaseDate = "April 24, 2026";
 	  
 //	  static String labelP = "[a-zA-Z]\\w*\\u002E.*";
 
@@ -46,14 +48,25 @@ public class OutputH {
 					"                      *** CalcuList ***               \n" +
 					"     *************************************************\n"+
 					"     ********* Release "+release+" of "+releaseDate+" *******\n\n");
-		    System.out.println ("** type '!!;' to display the list of service commands\n");
-
+		    System.out.println ("** type '!!;' to display the list of service commands\n");	    
 	  }
 	  
-	  static void errorCursor( int iLine ) {
-		  	for (int i =0; i<=iLine; i++)
-		  		System.out.print("-");
-		  	System.out.print("^"); 
+	  static void errorCursor( String line, int iLine ) {
+          int kprefix=40, ksuffix=20;
+          String hprefix= History.lastPrefix(kprefix);         
+          kprefix= hprefix.length();
+          System.out.println(" **Compilation Error after Line "+ History.nCommand()+"**");
+		  System.out.println(hprefix);
+		  for ( int i =0; i<kprefix-1; i++ )  
+			  System.out.print(' ');
+		  System.out.print("^ ");
+		  int i_min=Math.min(iLine-1,line.length()-1);
+		  int i_max=Math.min(iLine+ksuffix,line.length());
+		  if ( kprefix<1 )
+			  System.out.print( line.substring(0,i_max) );
+		  else
+			  if ( iLine-1 < line.length() )
+				  System.out.print( line.substring(i_min,i_max) );
 	}
 	  
 	  public  static void printRelease () {
@@ -74,7 +87,7 @@ public class OutputH {
 		    	  iStack++;
 		    	  System.out.format("%05d: ",iStack);
 		    	  System.out.format("%-6d",Exec.typeGV(i));
-		    	  System.out.println("\t"+Debug.printType(Exec.typeGV(i))
+		    	  System.out.println("\t"+Debug.printTypeT(Exec.typeGV(i))
 		    			  );
 		    	  iStack++;
 			      System.out.print("---------------");		    	  
@@ -137,16 +150,16 @@ public class OutputH {
 	  	static void printVarVal ( int ivar ) throws Exc {
 			int tSymb = Exec.typeGV(ivar);
 			double val = Exec.valGV(ivar);
-			System.out.print(": "+Exec.types[tSymb]);
-			if ( tSymb != Exec.NullT ) {
-				if ( tSymb !=Exec.StringT && tSymb !=Exec.ListT && tSymb !=Exec.JsonT) {
-					System.out.print(" = ");
-					PrintOutput.printVarVal(tSymb,val);
-				}
-				else {
-					System.out.print(" = ");
-					System.out.print((int)val+" (->Heap)");	
-				}
+			System.out.print(": ("+Exec.typesT[tSymb]);
+			if ( tSymb !=Exec.StringT && tSymb !=Exec.ListT && tSymb !=Exec.JsonT) {
+				System.out.print(", ");
+				PrintOutput.printVarVal(tSymb,val);
+				System.out.print(")");
+			}
+			else {
+				System.out.print(", ");
+				System.out.print((int)val+" [->Heap]");	
+				System.out.print(")");
 			}
 	  	}
 	  	
@@ -240,7 +253,7 @@ public class OutputH {
 						UorF='D';
 						System.out.println("-- Defined Functions");
 					}
-					System.out.print("("+UorF+(SymbolTableH.iVarFunc(i)+1)+") ");
+					System.out.print("("+UorF+(SymbolTableH.iVarFunc(i))+") ");
 					System.out.print(SymbolTableH.idSymb(i));
 					functDescr(i);
 					System.out.println("");			
@@ -289,12 +302,12 @@ public class OutputH {
 				System.out.println("\n------DEBUG OFF------\n");			
 		}
 		
-		public static void printTailOpt ( boolean isOn ) {
-			if ( isOn )
-				System.out.println("\n------Tail Recursion Optimization ON------\n");
-			else
-				System.out.println("\n------Tail Recursion Optimization OFF------\n");			
-		}
+//		public static void printTailOpt ( boolean isOn ) {
+//			if ( isOn )
+//				System.out.println("\n------Tail Recursion Optimization ON------\n");
+//			else
+//				System.out.println("\n------Tail Recursion Optimization OFF------\n");			
+//		}
 		
 		public static void printOneBuiltIn (BIFType builtInF) {
 			if ( builtInF ==  BIFType.RAND ) {
@@ -366,9 +379,9 @@ public class OutputH {
 			int i =SymbH.iSymb(idAbout); 
 			int iFunct = SymbolTableH.iVarFunc(i);
 			if ( iFunct < nUtil )
-				System.out.print("(U"+(iFunct+1)+") ");
+				System.out.print("(U"+(iFunct)+") ");
 			else
-				System.out.print("(D"+(iFunct+1)+") ");
+				System.out.print("(D"+(iFunct)+") ");
 			System.out.print(SymbolTableH.idSymb(i));
 			functDescr(i);
 			System.out.println("");	
@@ -406,7 +419,7 @@ public class OutputH {
 			System.out.println();
 		}
 		public static void printServiceList(boolean isDefault ) throws Exc{
-			if (! isDefault ) {
+			if (! isDefault ) { // Internal display only
 				System.out.println("\n------TABLE OF SYMBOLS------");
 				for (int i=0; i<SymbolTableH.nSymb(); i++) {
 					System.out.print(" ("+i+")");
@@ -429,6 +442,7 @@ public class OutputH {
 						"               -  p = n+k if k < 0\n" +
 						"               -  p = n if k = 0 or k is missing");			
 				System.out.println(" - !functions: lists all function names and their arguments");
+				System.out.println(" - !\\: lists the sources of all lambda functions defined within function definitions");
 				System.out.println(" - !history k: lists all statements (definitions and queries) of the session, ordered from 1 to n, corresponding to the last command\n"+
 						"               -  if k > 0, lists the statements from k to n\n" +
 						"               -  if k < 0, lists the statements from n-k to n\n" +
@@ -447,11 +461,78 @@ public class OutputH {
 				System.out.println(" - !release: displays details on the current CalcuList release");
 				System.out.println(" - !save: all session statements are saved into a text file \n"+
 						"               -  the name of the file is to be given after the prompt");
-				System.out.println(" - !tailOpt on/off: optimization of tail recursion implementation will be enabled or disabled\n"+
-						"               -  by default the optimization is enabled");
 				System.out.println(" - !variables: lists all global variables (including the labeled ones) and their values");
 				System.out.println(" * each of the above commands can be abbreviated by any non-empty prefix of it");
 				System.out.print("---End of LIST OF SERVICE COMMANDS---\n \n");
 			}
 		}
+			//  this method is called by Exec.PrintOutput
+			public static void printOutputLabel(int v, int prOpt) throws Exc {
+				int iL=v; String label = SymbolTableH.label(iL);
+				int nL=label.length();
+				boolean first = true;
+				for ( int i =0; i < SymbolTableH.nSymb(); i++) 
+					if ( SymbolTableH.hasLabelSymb(i) && SymbolTableH.labelSymb(i).equals(label) ) {
+						if ( first )
+							first = false;
+						else
+							System.out.println("");
+						System.out.println("- "+SymbolTableH.idSymb(i).substring(nL+1));
+						if ( SymbolTableH.tSymb(i)== SymbH.varType) {
+							int iVarFunct = SymbolTableH.iVarFunc(i);
+							int tSymb = Exec.typeGV(iVarFunct);
+							double val = Exec.valGV(iVarFunct);
+							PrintOutput.typedPrintV(val,tSymb,prOpt);
+						}
+						else
+							System.out.print(SymbolTableH.finfo_source(i));
+					}
+			}
+			
+		//  this method is called by Exec.PrintOutput
+			public static void printOutputFunction(int v) throws Exc {
+				// v is the address of the start function in CODE
+				// vv is the function index
+				int vv = (int)Exec.getInstruction(v).getOperand();
+				if ( vv >= 0) { // regular function
+					int iSymb= SymbolTableH.searchF(vv);
+					System.out.print(SymbolTableH.finfo_source(iSymb));
+				}
+				else { // lambda function
+					// lambda indices start from 1 
+					// but in the array lambdaFuncts they start from 0
+					LambdaFunctInfo lf = SymbolTableH.lambdaFuncts.get(-vv-1);
+					System.out.print(lf.source());
+					if ( lf.useFunctParms ) 
+						printFuncParms(lf,v,"");
+				}
+			}
+
+			static void printFuncParms (LambdaFunctInfo lf, int fStart, String tab ) throws Exc {
+				// get the value PLXARG from the instruction SETXPAR PLAXARG
+				int pLXARG=(int)Exec.getInstruction(fStart+1).getOperand();
+//***			int k = pLXARG+(lf.nFunctParms)*2-1; // first argument of the Function Argument Array
+				int k = pLXARG-2; // first argument of the Function Argument Array
+				for ( int i=0; i<lf.nFunctParms; i++ ) {
+					System.out.print("\n"+tab+"- "+lf.parmID(i)+": ");
+					double parmV = Exec.getMEM(k);
+					int parmT = (int) Exec.getMEM(k-1);
+					if ( parmT == Exec.FuncT ) {
+						Instruction instF = Exec.getInstruction((int) parmV); // first instruction of the parameter function
+						int iF = (int) instF.getOperand();
+						if ( iF>=0 ) {
+							int iSymb = SymbolTableH.searchF(iF);
+							System.out.print(SymbolTableH.finfo_source(iSymb));
+						}
+						else {
+							LambdaFunctInfo lfP = SymbolTableH.lambdaFuncts.get(-iF-1);
+							System.out.print(lfP.source());
+							if ( lfP.useFunctParms )  
+								printFuncParms(lfP,(int)parmV,tab+"  ");						}
+					}
+					else
+						PrintOutput.printVarVal(parmT,parmV);
+					k-=2;
+				}		
+			}	
 }

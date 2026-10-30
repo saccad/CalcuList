@@ -29,27 +29,32 @@ import java.util.ArrayList;
 public class LambdaFunctInfo {
 	static final int paramsInitCapacity = 20;
 	
-	public boolean useFunctParms;
+	// the lambda definition can be included in a (external) function definition 
+	// (extended) lambda parameters are proper or external (i.e., of the external function)
+	// external parameters precede proper ones and only external parameters can be of type function
+	public boolean useFunctParms; // true if the lambda function uses an external parameter of type function
+	public boolean seHostFunct; // true if the external function has side effect
 	public int nFunctParms; // number of parameters of the hosting function
-	ArrayList<String> currParmsIds; // possible function parameters + lambda parameters
-	ArrayList<Integer> fParmsTs; // function parameters types (0=varType, 1=functType)
-	ArrayList<Integer> fParmsFn; // arity for function parameters
-	CodeUnit code;
-	String source;
+	// properties of all extended lambda parameters
+	ArrayList<String> currParmsIds; // IDs of extended lambda parameters (proper and external ones)
+	ArrayList<Integer> fParmsTs; // lambda parameters types (0=varType, 1=functType)
+	ArrayList<Integer> fParmsFn; // arity for lambda parameters
+	CodeUnit code; // lambda executable code 
+	String source; // lambda source code
 	
-	int nP() {
+	int nP() { // number of proper lambda parameters
 		return currParmsIds.size()-nFunctParms;
 	}
 
-	int nPall() {
+	int nPall() { // number of extended lambda parameters (proper and external ones)
 		return currParmsIds.size();
 	}
 
-	int searchCurrParId ( String idN ){
+	int searchCurrParId ( String idN ){ // index of the parameter idN
 		return currParmsIds.indexOf(idN);
 	}
 	
-	int typePar ( int i ) {
+	int typePar ( int i ) { // varType or functType
 		return fParmsTs.get(i);
 	}
 	
@@ -57,7 +62,7 @@ public class LambdaFunctInfo {
 		return fParmsFn.get(i);
 	}	
 	
-	public String parmID( int i ) {
+	public String parmID( int i ) { // name of the parameter with index i
 		return currParmsIds.get(i);
 	}
 
@@ -69,18 +74,24 @@ public class LambdaFunctInfo {
 		return source;
 	}
 
+	public boolean seFunctDef() {
+		return seHostFunct;
+	}
+
 	LambdaFunctInfo ( ) {
 		currParmsIds= new ArrayList<String>(paramsInitCapacity);
 		fParmsTs=null;
 		fParmsFn=null;
 		nFunctParms = 0;
 		useFunctParms = false;
+		seHostFunct=false;
 	}
 
-	LambdaFunctInfo ( ArrayList<String> fpars, ArrayList<Integer> fTs,
+	LambdaFunctInfo ( ArrayList<String> fpars, boolean se,ArrayList<Integer> fTs,
 			ArrayList<Integer> fFn) {
 		nFunctParms = fpars.size();
 		useFunctParms=false;
+		seHostFunct=se;
 		currParmsIds= new ArrayList<String>(
 				Math.max(paramsInitCapacity,nFunctParms));
 		fParmsTs= new ArrayList<Integer>(
@@ -101,7 +112,8 @@ public class LambdaFunctInfo {
 		fParmsTs= fi.fParmsTs==null? null: new ArrayList<Integer>(fi.fParmsTs);
 		fParmsFn= fi.fParmsTs==null? null: new ArrayList<Integer>(fi.fParmsFn);
 		nFunctParms = fi.nFunctParms;
-		useFunctParms = fi.useFunctParms;
+		useFunctParms = fi.useFunctParms; 
+		seHostFunct = fi.seHostFunct;
 	}
 
 	void setUseFunctParms() {
@@ -110,10 +122,10 @@ public class LambdaFunctInfo {
 	
 	boolean addVarParam( String idN ) throws Exc {
 		int i=searchCurrParId(idN);
-		if ( i >= nFunctParms )
+		if ( i >= nFunctParms ) // duplicated lambda parameter ID
 			return false;
-		if ( i >=0 )
-			currParmsIds.set(i, " ");
+		if ( i >=0 ) // lambda parameter ID equal to function parameter ID
+			currParmsIds.set(i, " "); // the function parameter ID is obscured
 		currParmsIds.add(idN);
 		return true;
 	}

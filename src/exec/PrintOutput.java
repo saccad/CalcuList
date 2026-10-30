@@ -26,8 +26,7 @@ import java.io.*;
 import error.Exc;
 import error.Exc_Exec;
 import error.Exc.ErrorType;
-import sem.SymbolTableH;
-import sem.LambdaFunctInfo;
+import ioHandler.OutputH;
 
 /*
  * Printing the output stored in OUTPUT 
@@ -40,9 +39,17 @@ public class PrintOutput {
 	static boolean isStandardOutStream=true;
 	static String outStreamFile;
 	
+	static int prOptSt=0; // no print option
+	static int prOptQ1 = 1; // print option %*
+	static int prOptQ2 = 2; // print option %>
+	static int prOptExc = 3; // print option exc
+	
+	public static boolean isCalcuListEnv =true; 
+	// true if printing for CalcuList 
+	// false if printing for Assembler (no functions and labels details)
+
 	static String tab  ="     "; // for pretty printing
 	static String tab2 ="   "; // 2 spaces less than tab
-	
 	static public void setStandardOutStream() {
 		isStandardOutStream = true;
 	}
@@ -52,7 +59,7 @@ public class PrintOutput {
 		outStreamFile = fileName;
 	}
 
-	static public void printOutput ( boolean skipLine) throws Exc {
+	static public void printOutput ( ) throws Exc {
 		if ( !isStandardOutStream  ) {
 			try {
 				FileOutputStream f = new FileOutputStream(outStreamFile);		    
@@ -66,10 +73,11 @@ public class PrintOutput {
 		iOUT=0; 
 		try {
 			while ( iOUT < Exec.OP ) {
-				typedPrintV(Exec.OUTPUT[iOUT], (int) Exec.OUTPUT[iOUT+1]); 
-				iOUT +=2;
+				typedPrintV(Exec.OUTPUT[iOUT], (int) Exec.OUTPUT[iOUT+1], (int) Exec.OUTPUT[iOUT+2]); 
+				iOUT +=3;
 			}
-			if ( skipLine || Exec.OP > 0) 
+			// skip a line only if OUTPUT is not empty
+			if ( Exec.OP > 0) 
 				System.out.print("\n");
 			if ( !isStandardOutStream ) {
 				System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out)));
@@ -84,6 +92,9 @@ public class PrintOutput {
 				throw new Exc_Exec(Exc.ErrorType.WRONG_ADDRESS, " to OUTPUT");
 		}
 		Exec.OP=0;
+		// after having completed the current execution and printed possible results
+		// the chain of eXternal Argument Arrays can be removed
+		Exec.removeXAAC();  
 	}
 	
 	static String getStringHeap (int v) throws Exc {
@@ -97,15 +108,10 @@ public class PrintOutput {
 		return s;
 	}
 	
-	static public String getStringGV(int v) throws Exc {
-		v= (int)Exec.MEM[v*2];
-		return getStringHeap(v);
-	}
-
-	static void printStringExc(int start, int end ) throws Exc {
-		for ( int i = start; i >  end; i-- ) 
-			System.out.print(""+ (char) Exec.MEM[i]);
-	}
+//	static void printStringExc(int start, int end ) throws Exc {
+//		for ( int i = start; i >  end; i-- ) 
+//			System.out.print(""+ (char) Exec.MEM[i]);
+//	}
 	
 	static int findColon(int kk, int n ) throws Exc {
 		int kk0=kk;
@@ -118,18 +124,19 @@ public class PrintOutput {
 		return kk0;
 	}
 
-	static void typedPrintV ( double v, int t ) throws Exc {
-		switch ( t ) {
-		case Exec.StringExcF:
+	static public void typedPrintV ( double v, int t, int opt ) throws Exc {
+		if ( opt == prOptExc ) {
 			System.out.print("\n**Computation stopped by exception \"");
 			printString((int)v);
-			System.out.print ("\" thrown by ");
-			break;
+			System.out.print ("\" thrown by ");	
+			return;
+		}
+		switch ( t ) {
 		case Exec.NullT:
-			System.out.print("");
-			break;
-		case Exec.NullQF:
-			System.out.print("null");
+			if ( opt == prOptSt )
+				System.out.print("");
+			else
+				System.out.print("null");
 			break;
 		case Exec.IntT:
 			System.out.print(""+(int) v);
@@ -137,11 +144,11 @@ public class PrintOutput {
 		case Exec.LongT:
 			System.out.print(""+Double.doubleToRawLongBits(v)+'L');
 			break;
-		case Exec.CharQF:
-			printQuotedChar((char)v);
-			break;
 		case Exec.CharT:
-			System.out.print(""+(char) v);
+			if ( opt == prOptSt )
+				System.out.print(""+(char) v);
+			else
+				printQuotedChar((char)v);
 			break;
 		case Exec.BoolT:
 			printBool((int)v);
@@ -150,44 +157,60 @@ public class PrintOutput {
 			System.out.print(""+ v);
 			break;
 		case Exec.ListT:
-			printVarVal(Exec.ListT,v);
-			break;
-		case Exec.ListIndentAllF:
-			System.out.print("\n[ ");;
-			printQVarVal(Exec.ListT,v,0,true);
-			break;
-		case Exec.ListIndent1F:
-			System.out.print("\n[ ");
-			printQ1VarVal(Exec.ListT,v);
+			if ( opt == prOptSt )
+				printVarVal(Exec.ListT,v);
+			else
+				if ( opt == prOptQ1 ) {
+					System.out.print("[ ");;
+					printQ1VarVal(Exec.ListT,v);
+				}
+				else {
+					System.out.print("[ ");
+					printQVarVal(Exec.ListT,v,0,true);
+				}
 			break;
 		case Exec.JsonT:
-			printVarVal(Exec.JsonT,v);
+			if ( opt == prOptSt )
+				printVarVal(Exec.JsonT,v);
+			else
+				if ( opt == prOptQ1 ) {
+					System.out.print("{ ");
+					printQ1VarVal(Exec.JsonT,v);
+				}
+				else {
+					System.out.print("{ ");
+					printQVarVal(Exec.JsonT,v,1,true);
+				}
 			break;
-		case Exec.JsonIndentAllF:
-			System.out.print("\n{ ");
-			printQVarVal(Exec.JsonT,v,1,true);
-			break;
-		case Exec.JsonIndent1F:
-			System.out.print("\n{ ");
-			printQ1VarVal(Exec.JsonT,v);
-			break;
-		case Exec.StringQF:
-			printQuotedString((int)v);
-			break;
+
 		case Exec.StringT: 
-			printString((int)v);
+			if ( opt == prOptSt )
+				printString((int)v);
+			else
+				printQuotedString((int)v);
 			break;
-		case Exec.TypeT: case Exec.MetaTypeT:
+
+		case Exec.TypeT: 
 			System.out.print(""+ Exec.types[(int)v]);
 			break;
 		case Exec.FuncT: 
-			printFunction((int)v);
+			if ( isCalcuListEnv )
+				OutputH.printOutputFunction((int)v);
+			else
+				System.out.print(""+(int) v);
+			break;
+		case Exec.LabT:
+			if ( isCalcuListEnv )
+				OutputH.printOutputLabel((int)v,opt);
+			else
+				System.out.print(""+(int) v);
 			break;
 		default:
 			throw new Exc_Exec(Exc.ErrorType.WRONG_PRINT_FORMAT);		
 		}
 	}
 	
+
 	private static void printBool( int v) {
 		if ( v == 0 )
 			System.out.print("false");
@@ -225,53 +248,12 @@ public class PrintOutput {
 		}
 	}
 
-//  this function cannot be used within the assembler env
-	public static void printFunction(int v) throws Exc {
-		if ( v >= 0) {
-			int iSymb= SymbolTableH.searchF(v);
-			System.out.print(SymbolTableH.finfo_source(iSymb));
-		}
-		else {
-			LambdaFunctInfo lf = SymbolTableH.lambdaFuncts.get(-v-1);
-			System.out.print(lf.source());
-			if ( lf.useFunctParms ) {
-				int k = Exec.WRIL+1;
-				for ( int i=0; i<lf.nFunctParms; i++ ) {
-					System.out.print("\n- "+lf.parmID(i)+": ");
-					Instruction instL = Exec.CODE[k+1]; // built lambda instruction
-					int parmT = (int) instL.getOperand();
-					System.out.print(Exec.types[parmT]);
-					if ( parmT == Exec.FuncT ) 
-						System.out.print("/"+lf.parmArity(i));
-					System.out.print(" = ");
-					instL = Exec.CODE[k]; // built lambda instruction
-					double parmV = instL.getOperand();
-					if ( parmT == Exec.FuncT ) {
-						Instruction instF = Exec.CODE[(int) parmV]; // first instruction of the parameter function
-						int iF = (int) instF.getOperand();
-						if ( iF>=0 ) {
-							int iSymb = SymbolTableH.searchF(iF);
-							System.out.print(SymbolTableH.finfo_source(iSymb));
-						}
-						else {
-							LambdaFunctInfo lfP = SymbolTableH.lambdaFuncts.get(-iF-1);
-							System.out.print(lfP.source());
-						}
-					}
-					else
-						printVarVal(parmT,parmV);
-					k+=2;
-				}
-			}
-		}
-	}
-
 	public static void printVarVal(int tSymb, double val ) throws Exc {
 		if( tSymb == Exec.NullT ) {
 			System.out.print("null");
 			return;
 		}
-		if( tSymb == Exec.TypeT || tSymb == Exec.MetaTypeT ) {
+		if( tSymb == Exec.TypeT  ) {
 			System.out.print(Exec.types[(int)val]);
 			return;
 		}
@@ -324,6 +306,8 @@ public class PrintOutput {
 			System.out.print("{ ");
 			int ind = (int) val; 
 			ind = (int)Exec.MEM[ind-2]; // skip the initial null field
+			if ( ind==Exec.deletedNullValue ) 
+				throw new Exc_Exec(ErrorType.JSON_DELETED);
 			ind=skipNullFields(ind); // skip possible deleted fields
 			boolean first =true;
 			if ( ind != Exec.nullValue ) {
@@ -374,6 +358,8 @@ public class PrintOutput {
 		if( tSymb == Exec.JsonT ) {
 			int ind = (int) val; 
 			ind = (int)Exec.MEM[ind-2]; // skip the initial null field
+			if ( ind==Exec.deletedNullValue )
+				throw new Exc_Exec(ErrorType.JSON_DELETED);
 			ind=skipNullFields(ind); // skip possible deleted fields
 			if ( ind != Exec.nullValue ) {
 				do {
@@ -403,7 +389,7 @@ public class PrintOutput {
 			System.out.print("null");
 			return;
 		}
-		if( tSymb == Exec.TypeT || tSymb == Exec.MetaTypeT ) {
+		if( tSymb == Exec.TypeT  ) {
 			System.out.print(Exec.types[(int)val]);
 			return;
 		}
@@ -469,6 +455,8 @@ public class PrintOutput {
 		if( tSymb == Exec.JsonT ) {
 			int ind = (int) val; 
 			ind = (int)Exec.MEM[ind-2]; // skip the initial null field
+			if ( ind==Exec.deletedNullValue )
+				throw new Exc_Exec(ErrorType.JSON_DELETED);
 			ind=skipNullFields(ind); // skip possible deleted fields
 			first =true;
 			if ( ind != Exec.nullValue ) {
@@ -509,7 +497,7 @@ public class PrintOutput {
 	private static int skipNullElements(int ind ) throws Exc {
 		if ( ind == Exec.nullValue )
 			return Exec.nullValue;
-		if ( Exec.MEM[ind-1] == Exec.NoType ) 
+		if ( Exec.MEM[ind-1] == Exec.GenT ) 
       	  throw new Exc_Exec(ErrorType.LIST_DELETED);			
 		if ( Exec.MEM[ind]==Exec.deletedNullValue && Exec.MEM[ind-1] == Exec.NullT ) { 
 			ind=(int)Exec.MEM[ind-2];
@@ -522,8 +510,8 @@ public class PrintOutput {
 	private static int skipNullFields(int ind ) throws Exc {
 		if ( ind == Exec.nullValue )
 			return Exec.nullValue;
-//		if ( Exec.MEM[ind-1] == Exec.NoType ) 
-//	      	  throw new Exc_Exec(ErrorType.JSON_DELETED);			
+		if ( Exec.MEM[ind-1] == Exec.GenT ) 
+	      	  throw new Exc_Exec(ErrorType.JSON_DELETED);			
 		int indF= (int)Exec.MEM[ind];
 		if ( Exec.MEM[indF]==Exec.deletedNullValue && Exec.MEM[indF-1] == Exec.NullT ) {
 			ind=(int)Exec.MEM[ind-2];
@@ -547,7 +535,7 @@ public class PrintOutput {
 				case '\t': return "\\t";  // tab
 				case '\"': return "\\\"";  // double quote
 				case '\'': return "\\\'";  // single quote
-				case '\\': return "\\\\";  // backslash 
+				//case '\\': return "\\\\";  // backslash printed once
 				case '\b': return "\\b";  // backspace
 				default: return ""+c;
 				}

@@ -72,7 +72,7 @@ public class Parser {
 	static Token[] first_varDef = { 
 			Token.OSPAR,
 			Token.ASSIGN,
-			Token.OPASSIGN
+			Token.OPASS
 		 };
 	static Token[] first_varGlobSet = first_varDef;
 
@@ -80,13 +80,13 @@ public class Parser {
 	static Token[] first_varFunctLabDef = { 
 		Token.OSPAR,
 		Token.ASSIGN,
-		Token.OPASSIGN,
+		Token.OPASS,
 		Token.OPAR, 
 		Token.STAR,
 		Token.COLON
 	 };
 
-	static Token[] first_expr = { 
+	static Token[] first_ifExp = { 
 			Token.EMARK,
 			Token.OBRACE,
 			Token.PLUS,
@@ -100,16 +100,15 @@ public class Parser {
 			Token.STRING,
 			Token.CHAR,
 			Token.OPAR,
-			Token.TRUE,
-			Token.FALSE,
+			Token.BOOL,
 			Token.NULL,
-			Token.UNDERSCORE,
+			Token.BIFUNC,
 			Token.LAMBDA,
 			Token.TYPE
 		 };
-	static Token [] first_eqExpr = first_expr;
+	static Token [] first_eqExp = first_ifExp;
 
-	static Token[] first_term = first_expr;
+	static Token[] first_term = first_ifExp;
 	
 	static Token[] first_fact = { 
 		Token.OBRACE,
@@ -122,18 +121,17 @@ public class Parser {
 		Token.STRING,
 		Token.CHAR,
 		Token.OPAR,
-		Token.TRUE,
-		Token.FALSE,
+		Token.BOOL,
 		Token.NULL,
-		Token.UNDERSCORE,
+		Token.BIFUNC,
 		Token.LAMBDA,
 		Token.TYPE
 	 };
 	
 	static Token[] first_simpleTerm = first_fact;
 
-	static Token[] first_orExpr = first_expr;
-	static Token[] follows_orExpr_next = {
+	static Token[] first_orExp = first_ifExp;
+	static Token[] follows_orExp_next = {
 		Token.QMARK, 
 		Token.COLON, 
 		Token.COMMA, 
@@ -143,13 +141,11 @@ public class Parser {
 		Token.CPAR, 
 		Token.CSPAR, 
 		Token.CBRACE, 
-		Token.BAR,
+		Token.PIPE,
 		Token.OBRACESET,
-		Token.OBRACEPRINT,
 		Token.CBRACESET,
-		Token.CBRACEPRINT
 	};
-	static Token[] follows_andExpr_next = {
+	static Token[] follows_andExp_next = {
 		Token.OR,
 		Token.QMARK, 
 		Token.COLON, 
@@ -160,18 +156,13 @@ public class Parser {
 		Token.CPAR, 
 		Token.CSPAR, 
 		Token.CBRACE, 
-		Token.BAR, 
+		Token.PIPE, 
 		Token.OBRACESET,
-		Token.OBRACEPRINT,
 		Token.CBRACESET,
-		Token.CBRACEPRINT
 	};
-	static Token [] first_andExpr = first_expr;
-	static Token [] first_ifExpr =  first_expr;
-	static Token [] first_constListElems = first_expr;
-	static Token[] first_callFunct1 = first_expr;
-	static Token[] first_callFunct = { //FIRST(<expr>) U {  LAMBDA }
-		// include also epsilon - FOLLOWS = {CPAR}
+	static Token [] first_andExp = first_ifExp;
+	static Token [] first_constListElems = first_ifExp;
+	static Token[] first_callFunct = { //FIRST(<ifExp>) U {  LAMBDA }
 		Token.LAMBDA,
 		Token.EMARK,
 		Token.OBRACE,
@@ -186,15 +177,14 @@ public class Parser {
 		Token.STRING,
 		Token.CHAR,
 		Token.OPAR,
-		Token.TRUE,
-		Token.FALSE,
+		Token.BOOL,
 		Token.NULL,
-		Token.UNDERSCORE,
+		Token.BIFUNC,
 		Token.TYPE
 	};
-	static Token[] first_fields = first_expr; 
+	static Token[] first_fields = first_ifExp; 
 
-	static Token[] first_listElems = { //FIRST(<expr>) U {  DOT, GTLT(GT) , COLON }
+	static Token[] first_listElems = { //FIRST(<ifExp>) U {  DOT, GTLT(GT) , COLON }
 			Token.OBRACE,
 			Token.CSPAR,
 			Token.GTLT,
@@ -211,10 +201,9 @@ public class Parser {
 			Token.STRING,
 			Token.CHAR,
 			Token.OPAR,
-			Token.TRUE,
-			Token.FALSE,
+			Token.BOOL,
 			Token.NULL,
-			Token.UNDERSCORE,
+			Token.BIFUNC,
 			Token.TYPE, 
 			Token.DOT
 		 };
@@ -229,16 +218,35 @@ public class Parser {
 		Token.LONG,
 		Token.STRING,
 		Token.CHAR,
-		Token.TRUE,
-		Token.FALSE,
+		Token.BOOL,
 		Token.NULL,
 		Token.TYPE
 	 };
-
+	static Token[] first_set = { 
+			Token.OBRACESET,
+	};
+	static Token[] first_prSet = { 
+			Token.ID,
+			Token.IDL,
+			Token.EXC,
+			Token.OSPAR
+	};
+	static Token[] first_ioSet = { 
+			Token.PRINT,
+			Token.GTLT
+	};
+	static Token[] first_pr_ioSet = { 
+			Token.ID,
+			Token.IDL,
+			Token.EXC,
+			Token.OSPAR,
+			Token.PRINT,
+			Token.GTLT			
+	};
 	 static int typeDef; // it will take one of the following values
 	 static int isFunctDef = 0;
 	 static int isVarDef = 1;
-	 static int isComp = 2;
+	 static int isQuery = 2;
 	 static int isService = 3;
 	 static int isLabDef = 4;
 	 static int isSetLab = 5;
@@ -292,23 +300,19 @@ public class Parser {
 	 static boolean isDebug = false; 
 	 static boolean isTailOpt = true;
 	 
-	 static boolean cannotBeJson;
+//	 static boolean cannotBeJson;
 	 
 	 static BIFType builtInF;
 	 
 	 static boolean isNewVarDef; // true if the current statement is the definition of a new global variable
 
- 	 static boolean correctFileIn=true; // reading data from file by <<(<nameFileIn>)
- 	 static boolean isFileIn = false;
- 	 static String nameFileIn = null;
- 	 static int iJumpFileIn = 0;
- 	 static Vector<String> excludedKeys; 
+ 	 static Vector<String> excludedKeys; // keys to be excluded in <in>
  	 static int initSizeEK = 10, incrSizeEK=5;
  	 static BufferedWriter outputExecF;
  	 static FunctCalled currFunctCalled;
 	 
-	 // <program> -> { [ <statement> ] SCOLON } HALT
-	 public static void program (  ) {
+	 // <CalcuListSession> -> { [ <statement> ] SCOLON } HALT
+	 public static void CalcuListSession (  ) {
 		 boolean fatalError = false;
 		 try {
 			 setAnsGV();
@@ -336,7 +340,7 @@ public class Parser {
 		 				statement();
 		 				if ( lex.currToken() == Token.SCOLON ) {
 		 					History.endCommand();
-		 					if ( isDebug && typeDef != isService ) 
+		 					if ( isDebug && typeDef != isService && typeDef != isSetLab) 
 		 						PrintCode.printListing(Transl.end());
 				 			if ( typeDef == isVarDef || typeDef == isFunctDef ) 
 				 				SymbH.commitVarFunc(History.command(History.nCommand()-1));
@@ -346,7 +350,7 @@ public class Parser {
 					 			else
 					 				if ( typeDef == isService )
 					 					serviceCommandExec();
-				 			if (typeDef == isVarDef || typeDef == isLabDef || typeDef == isComp ) {
+				 			if (typeDef == isVarDef || typeDef == isLabDef || typeDef == isQuery ) {
 				 				translDone=true;
 				 				int nUnitCode = Transl.end().numInstr();
 				 				int nExecCode = Linker.link(Transl.end());
@@ -357,12 +361,12 @@ public class Parser {
 				 					PrintCode.printExecCode (nExecCode,nUnitCode);
 				 				Exec.exec(isDebug,nExecCode);
 				 			}
-				 			if ( typeDef == isComp )
-				 				PrintOutput.printOutput(true);
+				 			if ( typeDef == isQuery ) 
+				 				PrintOutput.printOutput();
 				 			else
 					 			if ( typeDef == isVarDef ) {
 					 				PrintOutput.setStandardOutStream();
-					 				PrintOutput.printOutput(false);
+					 				PrintOutput.printOutput();
 					 			}
 					 			else 
 					 				if ( typeDef == isSetLab ) {
@@ -371,8 +375,7 @@ public class Parser {
 					 				}
 		 				}
 		 				ioh.setPrompt(true);
-			 			lex.accept(Token.SCOLON);		 					
-		 				ioh.setPrompt(false);
+			 			lex.accept(Token.SCOLON);
 		 			}
 				 	catch ( Exc e ) {
 						 if ( e.errorType() == ErrorType.FATAL_ERROR) {
@@ -386,15 +389,15 @@ public class Parser {
 							 }
 							 else {
 								 try {
-									 if (execDone && e.errorType() != ErrorType.LIST_DELETED)
+									 if (execDone && e.errorType() != ErrorType.LIST_DELETED
+											      && e.errorType() != ErrorType.JSON_DELETED)
 										 // run time error: the OUTPUT is flushed out unless there are deleted lists 
-										 PrintOutput.printOutput(false);
+										 PrintOutput.printOutput();
 								 }
 								 catch( Exc et ) {
 									 
 								 }
 								 ioh.setImportError();
-					 			 History.histOff();
 					 			 if ( execNewVarDef )
 					 				 try {
 					 					 SymbH.checkGV();
@@ -405,6 +408,7 @@ public class Parser {
 					 			 }
 					 			 ioh.setPrompt(true);
 						     	 skipStatement(e,!translDone);
+					 			 History.histOff();
 							 }
 			     	}	
 		 		}
@@ -413,7 +417,7 @@ public class Parser {
 		 				ioh.setPrompt(true);
 		 				if ( lex.currToken() != Token.SCOLON  ) {
 		 				    ioh.setImportError();
-			 				skipStatement(raiseExc(first_statement),true);
+			 				skipStatement(raiseExc(first_statement),false);
 		 				}
 		 				lex.accept(Token.SCOLON); 
 		 				
@@ -432,8 +436,8 @@ public class Parser {
 	 }
 	 
 	 // <statement> ->  COLON [ ID | HASH ] |
-	 //					IDL  <varFunctDef> | ID <varFunctLabDef> | 
-	 //					PRINT <query> | EMARK <serviceCommand>
+	 //					IDL  <varFuncDef> | ID <varFuncLabDef> | 
+	 //					PRINT <query> |  EMARK <serviceCommand>
 	 static void statement ( ) throws Exc {
 		 if ( lex.currToken() == Token.COLON ) {
 			 typeDef= isSetLab;
@@ -464,9 +468,11 @@ public class Parser {
 		 	 Transl.start(); 
 			 String idN = lex.IDName();
 			 boolean hasLabel = true; String label = lex.currLabel();
+			 if (!SymbH.isLabel(label)) 
+ 				 throw new Exc_Synt(ErrorType.UNDEF_LABEL, ": "+label );				 						 
 		 	 History.startCommand(); History.addSubStr(idN);
 			 lex.nextToken();
-			 varFunctDef(idN,hasLabel,label);
+			 varFuncDef(idN,hasLabel,label);
  			 return;
 		 }
 		 if ( lex.currToken() == Token.ID ) {
@@ -474,8 +480,8 @@ public class Parser {
 				 String idN = lex.IDName();
 			 	 History.startCommand(); History.addSubStr(idN);
 				 lex.nextToken();
-				 varFunctLabDef(idN);
-				 return;
+				 varFuncLabDef(idN);
+			 return;
 		 }
 		 if ( lex.currToken() == Token.PRINT ) {
 			 History.startCommand(); 
@@ -485,15 +491,18 @@ public class Parser {
 			 return;
 		 }
 		 if ( lex.currToken() == Token.EMARK ) {
+			 History.startCommand(); 
+			 History.addSubStr("! ");
 			 lex.nextToken();
 			 serviceCommand();
+			 History.histOff(); // service command not kept in the history
 		 }
 		 else
 			 throw raiseExc(first_statement);
 	 }
 	 
-	 // <varFunctLabDef> -> <varFunctDef> | COLON <labDef>  
-	 static void varFunctLabDef ( String idN ) throws Exc {
+	 // <varFuncLabDef> -> <varFuncDef> | COLON <labDef>  
+	 static void varFuncLabDef ( String idN ) throws Exc {
 		 if (lex.currToken() == Token.COLON ) {
  			 lex.setComment(true); 
 			 lex.printH_Colon(true); // print spaced COLON on history
@@ -502,14 +511,15 @@ public class Parser {
 		 }
 		 else {
 				boolean hasLabel=false; String label="";
-			 	varFunctDef(idN,hasLabel,label);
+			 	varFuncDef(idN,hasLabel,label);
 		}
 	 }
-	 // <varFunctDef> -> <varDef> | STAR <funcDef(SE)> |  <funcDef(noSE)>   
-	 static void varFunctDef ( String idN, boolean hasLabel, String label ) throws Exc {
+	 // <varFuncDef> -> <varDef> | STAR <funcDef(SE)> |  <funcDef(noSE)>   
+	 static void varFuncDef ( String idN, boolean hasLabel, String label ) throws Exc {
 		 if ( setLabel && !hasLabel ) { // the usage of implicit label is set
 			 String idN_full = setLabelID+"."+idN;
 			 if ( SymbH.iSymb(idN_full)>=0 ) { // the labeled ID exists
+				 History.replaceLast(idN, idN_full);
 				 idN=idN_full; hasLabel=true; label= setLabelID;
 			 }			 			
 		 };
@@ -537,8 +547,7 @@ public class Parser {
 		 }	 
 	 }
 	 
-	 // <labDef> -> [COMMENT] ID [ [STAR] DIV INT ] 
-	 //				{ COMMA ID [ [STAR] DIV INT ]  } 
+	 // <labDef> -> [COMMENT] ID [ <labFuncDef> ]  { COMMA ID [ <labFuncDef> ]  }
 	 static void labDef ( String idNL ) throws Exc {
  			 Transl.ins(Operator.INIT,SymbH.nVar());
  			 typeDef=isLabDef;
@@ -556,9 +565,10 @@ public class Parser {
  			 else
  				 throw new Exc_Synt(ErrorType.EXPECTED_ID,
  						 " - found "+lex.tokenFullDescr() );
- 			 lex.accept(Token.ID );
- 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV) 
- 				 labFunct(idN);
+ 			 lex.nextToken( );
+ 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV
+ 					|| lex.currToken() == Token.OPAR) 
+ 				 labFuncDef(idN);
  			 else
  				 labVar(idN);
  			 while (lex.currToken() == Token.COMMA) {
@@ -569,9 +579,10 @@ public class Parser {
  	 			 else
  	 				 throw new Exc_Synt(ErrorType.EXPECTED_ID,
  	 						 " - found "+lex.tokenFullDescr() );		 
- 	 			 lex.accept(Token.ID );
- 	 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV) 
- 	 				 labFunct(idN);
+ 	 			 lex.nextToken( );
+ 	 			 if (lex.currToken() == Token.STAR || lex.currToken() == Token.DIV
+ 	 					|| lex.currToken() == Token.OPAR ) 
+ 	 				 labFuncDef(idN);
  	 			 else
  	 				 labVar(idN);
  			 };
@@ -579,116 +590,155 @@ public class Parser {
  			 return;
 	 }
 	 
-	 // method called by <labDef>
-	 static void labFunct ( String idN ) throws Exc {
+	 // <labFuncDef> ->  [STAR] ( DIV INT | 
+	 //                          OPAR [ UNDERSCORE [ DIV INT] { COMMA UNDERSCORE [ DIV INT]} ] } CPAR
+	 //                          [ DIV INT] )
+	 static void labFuncDef ( String idN ) throws Exc {
 		 boolean se = false;
 			 if ( lex.currToken() == Token.STAR) {
 				 se=true;
 				 lex.nextToken();
 			 }
-			 lex.accept(Token.DIV);
+			 SymbH.startAddLabFunct(idN,se);
+			 if ( lex.currToken() == Token.DIV) {
+				 lex.nextToken();
+				 if ( lex.currToken()== Token.INT ) {
+					 int arity = lex.intVal();
+					 lex.nextToken();
+					 for (int i=0; i<arity;i++)
+						 SymbH.addVarParLabFunct();
+		//			 SymbH.addLabFunct(idN,se,arity);
+				 }
+				 else
+						throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+								"-- expected INT for labeled function arity - found " + lex.tokenFullDescr());
+			 }
+			 else
+				 if ( lex.currToken() == Token.OPAR ) {
+					 lex.nextToken();
+					 if ( lex.currToken()==Token.UNDERSCORE || 
+							 lex.currToken()==Token.ID ) {
+						 lex.nextToken();
+						 parLabFunc();
+					 }
+					 while ( lex.currToken() == Token.COMMA ) {
+						 lex.printH_Comma(true); // print space after comma in history
+						 lex.nextToken();
+						 if ( lex.currToken()==Token.UNDERSCORE || 
+								 lex.currToken()==Token.ID ) {
+							 lex.nextToken();
+							 parLabFunc();
+						 }
+						 else
+								throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+										"-- expected '_' or ID for labeled function parameter - found " + lex.tokenFullDescr());
+					 }					 
+					 lex.accept(Token.CPAR);			 
+					 if ( lex.currToken() == Token.DIV) {
+						 lex.nextToken();
+						 if ( lex.currToken()== Token.INT ) {
+							 int arity = lex.intVal();
+							 lex.nextToken();
+							 SymbH.addFuncRetLabFunct(arity);
+						 }
+						 else
+								throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+										"-- expected INT for labeled returned function arity - found " + lex.tokenFullDescr());
+					 }	
+				 }
+				 else
+						throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+								"-- expected INT or '(' for labeled function definition - found " + lex.tokenFullDescr());			 
+			 SymbH.closeLabFunctDef(idN,se);
+	 }
+	 
+	 // method called by <labFuncDef>
+	 static void parLabFunc (  ) throws Exc {
+		 if ( lex.currToken()==Token.DIV ) {
+			 lex.nextToken();
 			 if ( lex.currToken()== Token.INT ) {
 				 int arity = lex.intVal();
 				 lex.nextToken();
-				 SymbH.addLabFunct(idN,se,arity);
+				 SymbH.addFuncParLabFunct(arity);
 			 }
 			 else
 					throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
-							"-- expected INT for function arity - found " + lex.tokenFullDescr());					 		
+							"-- expected INT for labeled parameter function arity - found " + lex.tokenFullDescr());
+			 
+		 }
+		 else
+			 SymbH.addVarParLabFunct();
 	 }
-	 
+
 	 // method called by <labDef>
 	 static void labVar ( String idN ) throws Exc {
 		 int indLabVar = SymbH.addLabVar(idN); 
 		 if ( indLabVar < 0 ) {
-			 Transl.ins(Operator.PUSHN,0); // default null value for labeled variables
-		 }
-		 else {
-			 Transl.ins(Operator.LOADGV,indLabVar);
-			 Transl.ins(Operator.PUSHN,0); // default null value for labeled variables
-			 Transl.ins(Operator.MODV,0);
+			 Transl.ins(Operator.PUSHN,0); // default null value for new labeled variables
 		 }
 	 }
 	 
-	 // <query> -> [FILEOUT OPAR (STRING | ID | IDL) CPAR] <ifExpr(SE)>
-	 //					 [PRINTOPT] { CONTINUE  <ifExpr(SE)> [PRINTOPT] }
+	 // <query> -> [ <out> ] <ifExpr(SE)> [PRINTOPT] 
+	 //			   { CONTINUE  <ifExpr(SE)> [PRINTOPT] }
 	 static void query ( ) throws Exc {
 	 	    Transl.start();
 	 		SymbH.startComp();
 	 		Transl.ins(Operator.INIT,SymbH.nVar());
 	 		boolean startPrint = true;
-			typeDef=isComp;
-			if (lex.currToken()==Token.FILEOUT ) {
-				lex.nextToken();
-				lex.setTruncatableString(false); // a file name string cannot be truncated
-				lex.accept(Token.OPAR);
-				if ( lex.currToken() == Token.STRING ) 
-					PrintOutput.setFileOutStream(lex.stringVal());
-				else
-					if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
-						int iVar = getStringID();
-						PrintOutput.setFileOutStream(PrintOutput.getStringGV(iVar));
-					}
-					else
-						 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.tokenFullDescr()+
-								 " - expected: a string or 'ID'");
-				lex.setTruncatableString(true); // by default string are truncatable
-				lex.nextToken();
-				lex.accept(Token.CPAR);
-			}
+			typeDef=isQuery;
+			if (lex.currToken()==Token.OUT ) 
+				out();
 			else
 				PrintOutput.setStandardOutStream();
 	 		do {
 			 	if ( ! startPrint ) 
 			 		lex.nextToken ();
-			 	else {
-			 		SymbH.startVarDef("ans",false,"");			 		
-				 	Transl.ins(Operator.LOADGV,SymbH.iVar()); 
-			 	}
-		 		int retType=ifExpr(true); // side effect is enabled
-			 	if ( retType>=Exec.FuncT ) 
-			 		Transl.ins(Operator.FUNCF,0);
-//		        	throw new Exc_Synt(ErrorType.WRONG_RET_TYPE, ": a function cannot be printed");
-		 		if ( startPrint ) 
-		 			Transl.ins(Operator.DUPL,0); 
+			 	SymbH.startVarDef("ans",false,"");			 		
+				Transl.ins(Operator.LOADGV,SymbH.iVar()); 
+			 	int	retType=ifExp(true); // side effect is enabled
+//			 	if ( isFunction(retType) ) 
+//			 		Transl.ins(Operator.OUTF,0);
+		 		Transl.ins(Operator.DUPL,0); 
 		 		if ( lex.currToken() == Token.PRINTOPT) {
 					Transl.ins(Operator.PRINT,lex.indPrint());
 					lex.nextToken();
 		 		}
 		 		else
 		 			Transl.ins(Operator.PRINT,0);
-		 		if ( startPrint ) {
-		 			if ( retType>=Exec.FuncT ) { 
-		 				Transl.ins(Operator.POP,0);
-		 				Transl.ins(Operator.PUSHN,0);
-		 			}
-				 	Transl.ins(Operator.MODV,0); 
-		 		}
-	 			startPrint = false;
+	 			if ( isLabel(retType) || isFunction(retType) ) { 
+	 				Transl.ins(Operator.POP,0);
+	 				Transl.ins(Operator.PUSHN,0);
+	 			}
+			 	Transl.ins(Operator.MODV,0); 
+	 			startPrint = false; /* */
 	 		} while ( lex.currToken() == Token.CONTINUE );
 	 		Transl.ins(Operator.HALT,0);
 	 		return;		 
 	 }
 
-	 // method called by query and by varDef
-	 static int getStringID() throws Exc {
-		 String idName = lex.IDName();
-		 boolean hasLabel= lex.currToken()==Token.IDL;
-		 String label =   hasLabel? lex.currLabel(): null;
-		 int idType = SymbH.setCurrID(idName,hasLabel,label,setLabel, setLabelID);
-		 if ( idType == SymbH.undefID )
-				throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
-		 if ( idType == SymbH.functType )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-						"found a function - expected a global variable");
-		 int iVar = SymbH.iCurrVarFunc();
-		 int tSymb = SymbH.typeGV(iVar);
-		 if ( tSymb != Exec.StringT )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-						"- expected a string global variable");
-		 return iVar;						
+	 // checkString: called by <out> and <in>
+	 static void checkString() throws Exc {
+			if (lex.currToken() == Token.STRING) 
+				if ( lex.stringVal() =="") 
+					throw new Exc_Synt(ErrorType.EMPTY_STRING);
+				else; /* OK */
+			else
+				throw new Exc_Synt(ErrorType.WRONG_TYPE,lex.tokenFullDescr()+
+							 " - expected: string");
+		 
 	 }
-
+	 // <out> -> OUT OPAR STRING CPAR 
+	 static void out ( ) throws Exc {
+			lex.nextToken();
+			lex.setTruncatableString(false); // a file name string cannot be truncated
+			lex.accept(Token.OPAR);
+			checkString();
+			PrintOutput.setFileOutStream(lex.stringVal());
+			lex.setTruncatableString(true); // by default string are truncatable
+			lex.nextToken();
+			lex.accept(Token.CPAR);
+	 }
+	 
  
 	 // <serviceCommand> -> ID("variables") | ID("functions") | ID("release") | ID("labels") |
 	 //						ID("about") (UNDERSCORE ID | ID | IDL) | ID("debug") [ID("off") | ID("on")] | 
@@ -708,6 +758,7 @@ public class Parser {
 				 typeServiceList=isDefaultList;
 			 return;
 		 }
+		 lex.printH_space();
 		 if ( lex.currToken() == Token.LAMBDA) {
 			 lex.nextToken();
 			 typeService=isLambdaList;
@@ -736,17 +787,11 @@ public class Parser {
 
 			 if ( checkCommand(name,"about")  ) {
 				 lex.nextToken();
-				 if ( lex.currToken() == Token.UNDERSCORE ) {
+				 if ( lex.currToken() == Token.BIFUNC ) {
 					 typeService = isAboutService; typeAbout = isAboutBuiltIn;
+					 builtInF = lex.BIF_type();
 					 lex.nextToken();
-					 if ( lex.currToken() == Token.ID ) {
-						 builtInF = lex.getBuiltIn();
-						 lex.nextToken();
-						 return;
-					 }
-					 else
-						 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.currTokenDescr()+
-								 " - expected: ID of a built-in function" );
+					 return;
 				 }
 				 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
 					 idAbout = lex.IDName(); lex.nextToken();
@@ -788,24 +833,24 @@ public class Parser {
 				 typeService = isDebug? isDebugOnService: isDebugOffService;
 				 return;
 			 }
-			 if ( checkCommand(name,"tailOpt")  ) {
-				 lex.nextToken();
-				 if ( lex.currToken() == Token.ID ) {
-					 if ( lex.IDName().equals("on")  )
-						 isTailOpt = true;
-					 else
-						 if ( lex.IDName().equals("off")  )
-							 isTailOpt = false;
-						 else
-							 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.IDName()+
-									 " - expected: 'on' or 'off' or no argument" );
-					 lex.nextToken();
-				 }
-				 else
-					 isTailOpt= true;
-				 typeService = isTailOpt? isTailOptOnService: isTailOptOffService;
-				 return;
-			 }
+//			 if ( checkCommand(name,"tailOpt")  ) {
+//				 lex.nextToken();
+//				 if ( lex.currToken() == Token.ID ) {
+//					 if ( lex.IDName().equals("on")  )
+//						 isTailOpt = true;
+//					 else
+//						 if ( lex.IDName().equals("off")  )
+//							 isTailOpt = false;
+//						 else
+//							 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.IDName()+
+//									 " - expected: 'on' or 'off' or no argument" );
+//					 lex.nextToken();
+//				 }
+//				 else
+//					 isTailOpt= true;
+//				 typeService = isTailOpt? isTailOptOnService: isTailOptOffService;
+//				 return;
+//			 }
 			 if ( checkCommand(name,"history")  ) {
 				 lex.nextToken();
 				 int sign = 1;
@@ -814,10 +859,10 @@ public class Parser {
 				 }
 				 if ( lex.currToken() == Token.INT  ) {
 					    if ( History.nCommand() == 0 )
-					    	throw new Exc_Synt(ErrorType.WRONG_HISTRORY_INDEX," - empty history ");
+					    	throw new Exc_Synt(ErrorType.WRONG_HISTORY_INDEX," - empty history ");
 					    int iH = lex.intVal()*sign;
 						if ( iH < -History.nCommand()+1 || iH > History.nCommand() ) 
-							 throw new Exc_Synt(ErrorType.WRONG_HISTRORY_INDEX,iH+
+							 throw new Exc_Synt(ErrorType.WRONG_HISTORY_INDEX,iH+
 										" - must be between "+ (-History.nCommand()+1)+" and "+History.nCommand());
 						typeService=isHistoryNumService; 
 						numHistory=iH <= 0? History.nCommand()+iH-1: iH-1;
@@ -828,7 +873,7 @@ public class Parser {
 						 typeService=isHistoryService; numHistory=0;
 					 }
 					 else
-						 throw new Exc_Synt(ErrorType.WRONG_HISTRORY_INDEX," - spurious \'-\' ");
+						 throw new Exc_Synt(ErrorType.WRONG_HISTORY_INDEX," - spurious \'-\' ");
 				 return;
 			 }
 			 if ( checkCommand(name,"exec")  ) {
@@ -898,7 +943,7 @@ public class Parser {
 			 else
 				 throw new Exc_Synt(ErrorType.WRONG_OPTION,lex.IDName()+
 								" - expected: 'variables' or 'functions' or 'debug' or 'history' or 'memory' "+
-								"or 'labels' or 'import' or 'exec' or 'clops' or 'release' or 'save' or 'about' or 'tailOpt'"+ " or any prefix of them");
+								"or 'labels' or 'import' or 'exec' or 'clops' or 'release' or 'save' or 'about'"+ " or any prefix of them");
 		 }
 		 else {
 			 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.tokenFullDescr()+
@@ -915,75 +960,74 @@ public class Parser {
 	 }
 
 	 // <varDef> -> { OSPAR <ifExpr> CSPAR } ( OPASSIGN <ifExpr> |
-	 //				ASSIGN ( HASH NULL | <fileIn> | <ifExpr> ) )
+	 //				ASSIGN ( HASH NULL | <in> | <ifExpr> ) )
 	 static void varDef ( ) throws Exc {
-		 int typeVar=SymbH.isNewDef()?Exec.NoType: SymbH.typeGV(SymbH.iVar()); 
+		 int typeVar=SymbH.isNewDef()?Exec.GenT: SymbH.typeGV(SymbH.iVar()); 
 		 boolean listElOrField=false;
 	 	 boolean se = false;
 		 Transl.ins(Operator.INIT,SymbH.nVar()); 
 	 	 Transl.ins(Operator.LOADGV,SymbH.iVar()); 
  		 if ( lex.currToken() == Token.OSPAR ) {
- 			 typeVar=Exec.NoType;
+ 			 typeVar=Exec.GenT;
 			 lex.nextToken(); listElOrField=true;
-			 if ( inFirst(first_expr) ) {
+			 if ( inFirst(first_ifExp) ) {
 				 int precType = SymbH.prevListJsonDef();
 			 	 Transl.ins(Operator.DEREF,0);
 			 	 SymbH.noDef();
-				 int type=ifExpr(se);
+				 int type=ifExp(se);
 				 if ( precType == Exec.ListT ) {
-					 if ( type != Exec.NoType && !isInteger(type) )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+					 if ( type != Exec.GenT && !isIntegerOrChar(type) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 									Exec.types[type]+"- expected types: int or char");
 					 Transl.ins(Operator.LISTEL,0); 
 				 }
 				 else {
-					 if ( type != Exec.NoType && type != Exec.StringT )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+					 if ( type != Exec.GenT && type != Exec.StringT )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 									Exec.types[type]+"- expected type: string");
 					 Transl.ins(Operator.FLDFIND,1); 			 
 				 }					 
 				 lex.accept(Token.CSPAR);
 		 		 while ( lex.currToken() == Token.OSPAR ) {
 		 			 lex.nextToken();
-					 if ( inFirst(first_expr) ) {
+					 if ( inFirst(first_ifExp) ) {
 					 	 Transl.ins(Operator.HDFLDV,0);
-						 type=ifExpr(se);
-						 if ( type != Exec.NoType && !isInteger(type) && type != Exec.StringT )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+						 type=ifExp(se);
+						 if ( type != Exec.GenT && !isIntegerOrChar(type) && type != Exec.StringT )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 										Exec.types[type]+"- expected types: int or char or string");
 						 Transl.ins(Operator.LJEL,0); 
 						 lex.accept(Token.CSPAR);
 					 }				 
 					 else 
-						 throw raiseExc(first_expr);
+						 throw raiseExc(first_ifExp);
 				 }
 			 }
 			 else 
-				 throw raiseExc(first_expr);	
+				 throw raiseExc(first_ifExp);	
  		 }
 	 	 isNewVarDef = SymbH.isNewDef();
- 		 if ( lex.currToken()==Token.OPASSIGN ) {
+ 		 if ( lex.currToken()==Token.OPASS ) {
   			 Token assOpType = lex.currAssOp();
 		 	 lex.printH_OpAssign(assOpType,true); // print op-assign with spaces on history
 		 	 if ( isNewVarDef )
 					throw new Exc_Synt(ErrorType.UNDEF_VAR, 
 							"- the compound assignment cannot be used");		 		 
-		 	 if ( typeVar != Exec.NoType && !isNumber(typeVar) && 
-		 			 !( (typeVar==Exec.ListT || typeVar==Exec.StringT) && assOpType==Token.PLUS) ) 
-		 		if ( assOpType==Token.PLUS )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							Exec.types[typeVar]+"- expected types: double or long or int or char or list or string");
-		 		else
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+		 	 if ( typeVar != Exec.GenT &&  
+		 			 !(typeVar==Exec.ListT || typeVar==Exec.StringT) && assOpType==Token.PLUSPLUS ) 
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[typeVar]+"- expected types: list or string");
+		 	 if ( typeVar != Exec.GenT && !isNumber(typeVar) && assOpType!=Token.PLUSPLUS )  
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[typeVar]+"- expected types: double or long or int or char");		 		 
  			 opAssign(typeVar, listElOrField, assOpType,true); // se = true
  		 }
  		 else {
 		 	 lex.printH_Assign(true); // print assign with spaces on history
 		 	 lex.accept(Token.ASSIGN);
-		 	 isFileIn = lex.currToken() == Token.FILEIN;
+		 	 boolean isFileIn = lex.currToken() == Token.IN;
 			 if( isFileIn ) 
-				 fileIn();
+				 in();
 			 else
 				 if ( lex.currToken() == Token.HASH ) {
 					 lex.nextToken();
@@ -1005,10 +1049,15 @@ public class Parser {
 				 }
 				 else {
 				 	 se = true;
-					 int retType=ifExpr(se);
-						if ( retType >= Exec.FuncT )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[Exec.FuncT]+"- a function cannot be assigned to a variable");		 		 		
+					 int retType=ifExp(se);
+						if ( isFunction(retType) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[Exec.FuncT]+"- a function cannot be assigned to a variable");
+						else
+							if ( isLabel(retType) )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										Exec.types[Exec.FuncT]+"- a label cannot be assigned to a variable");
+							
 				 }
  		 }
 		 if ( listElOrField )
@@ -1016,85 +1065,87 @@ public class Parser {
 		 else
 			 Transl.ins(Operator.MODV,0);	
 	 	 Transl.ins(Operator.HALT,0);
-	 	 if ( isFileIn && correctFileIn ) {
-			 Lex lexFI = new Lex (new IOH(nameFileIn));
-			 ioh.print(" - reading data from file '"+nameFileIn+"'\n");
-			 lexFI.nextToken();
-	         File file = new File(Exec.fileExecName);
-	         try {
-	        	 	outputExecF = new BufferedWriter(new FileWriter(file));
-	         } 
-	         catch (Exception e) {
-	        	 	throw new Exc_Synt(ErrorType.WRONG_EXEC_FILE, Exec.fileExecName+": unexpected error while opening");
-	        	 }
-	         //Transl.ins(Operator.EXECF, 0);
-	 		 History.histOff();
-	 		 factFI(lexFI,true);
-	         try {
-	        	 	outputExecF.close();
-	         } 
-	         catch (Exception e) {
-	        	 	throw new Exc_Synt(ErrorType.WRONG_EXEC_FILE, Exec.fileExecName+": unexpected error while closing");
-	        	 }
-	 		 if ( lexFI.currToken() != Token.END )
-				 throw new Exc_Synt(ErrorType.WRONG_FILE_IN,
-						 " - spurious characters at the end of the file");
-			 ioh.print("\n - data are correct\n");
-	 		 // Transl.ins(Operator.JUMP,iJumpFileIn);
-	 		 History.histOn();
-	 	 }
+
 	 }
 
-	 // <fileIn> -> 	FILEIN OPAR (STRING | ID | IDL) 
-	 //					[ 	COMMA  ( STRING | ID | IDL )
-	 //						{COMMA  ( STRING | ID | IDL ) }  ] CPAR  
-	 static void fileIn ( ) throws Exc {
-	 	 	correctFileIn=true; 
-	 	 	isFileIn = true;
-	 	 	nameFileIn = null;
+	 // <in> -> 	IN OPAR STRING {COMMA   STRING  } CPAR
+	 static void in ( ) throws Exc {
+		 	// it is read a data structure expression stored into a text file:
+		 	// the data structure has type from DoubleT to TypeT  
+		 	// It is created a code to parse the expression and store the structure into the HEAP
+		 	// The value of the data structure will be eventually assigned
+	 	 	boolean correctFileIn=true; 
+	 	 	String nameFileIn = null;
 			lex.nextToken();
 			lex.setTruncatableString(false); // a file name string cannot be truncated
 			lex.accept(Token.OPAR);
 			Transl.ins(Operator.EXECF, 0); // next instructions: MOD, HALT
-			// int iJumpT = Transl.ins(Operator.JUMP,0);
-			// Transl.modOperand(iJumpT, iJumpT+4); // skip NEXT, MOD, HALT
-			// iJumpFileIn = Transl.ins(Operator.NEXT,0);
-			nameFileIn = getString();
+			checkString();
+			nameFileIn =lex.stringVal();
+			lex.setTruncatableString(true); // by default string are truncatable
 			lex.nextToken();
 			excludedKeys = new Vector<String>(initSizeEK,incrSizeEK);
-			if ( lex.currToken() == Token.COMMA ) {
+			while ( lex.currToken()==Token.COMMA ) {
 				lex.nextToken();
-				excludedKeys.add(getString());
+				checkString();
+				String st = lex.stringVal();;
+				excludedKeys.add(st);
 				lex.nextToken();
-				while ( lex.currToken()==Token.COMMA ) {
-					lex.nextToken();
-					excludedKeys.add(getString());
-					lex.nextToken();
-				}
-			}		
+			}
 			lex.accept(Token.CPAR);
 			if ( lex.currToken() != Token.SCOLON )
 				correctFileIn=false;
-	 }
+		 	 if (  correctFileIn ) {
+				 Lex lexFI = new Lex (new IOH(nameFileIn));
+				 ioh.print(" - reading data from file '"+nameFileIn+"'\n");
+				 lexFI.nextToken();
+		         File file = new File(Exec.fileExecName);
+		         try {
+		        	 	outputExecF = new BufferedWriter(new FileWriter(file));
+		         } 
+		         catch (Exception e) {
+		        	 	throw new Exc_Synt(ErrorType.WRONG_EXEC_FILE, Exec.fileExecName+": unexpected error while opening");
+		        	 }
+		 		 History.histOff();
+		 		 factFI(lexFI,true);
+		         try {
+		        	 	outputExecF.close();
+		         } 
+		         catch (Exception e) {
+		        	 	throw new Exc_Synt(ErrorType.WRONG_EXEC_FILE, Exec.fileExecName+": unexpected error while closing");
+		        	 }
+		 		 if ( lexFI.currToken() != Token.END )
+					 throw new Exc_Synt(ErrorType.WRONG_FILE_IN,
+							 " - spurious characters at the end of the file");
+				 ioh.print("\n - data are correct\n");
+		 		 // Transl.ins(Operator.JUMP,iJumpFileIn);
+		 		 History.histOn();
+		 	 }
+	}
 
-	 // called by fileIn
-	 private static String getString () throws Exc {
-		 	String st;
-			if ( lex.currToken() == Token.STRING ) 
-				st= lex.stringVal();
-			else
-				if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
-					int iVar=getStringID();
-					st = PrintOutput.getStringGV(iVar);
-				}
-				else
-					 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.tokenFullDescr()+
-							 " - expected: a string or 'ID' or 'IDL'");
-			lex.setTruncatableString(true); // by default string are truncatable
-			return st;
-	 }
-	 
-	 // called by varDef and varGlobSet
+	 // called by opAssign
+	private static void checkGenNum(int type) throws Exc {
+		if ( type!=Exec.GenT && !isNumber(type) )
+			throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[type]+"- expected types: double or long or int or char");		 		 		
+	}
+
+	 // called by opAssign
+	private static void checkGenStringList(int type1,int type2) throws Exc {
+		if ( type1==Exec.GenT && type2==Exec.GenT )
+			return;
+		if ( type1!=Exec.GenT && type1!=Exec.StringT && type1!=Exec.ListT )
+			throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[type1]+"- expected types: string or list");		 		 		
+		if ( type2!=Exec.GenT && type2!=Exec.StringT && type2!=Exec.ListT )
+			throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[type2]+"- expected types: string or list");		 		 		
+		if ( type1!=Exec.GenT && type2!=Exec.GenT && type1!=type2 )
+			throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[type2]+"- expected type: "+Exec.types[type1]);		 		 		
+	}
+
+	// called by varDef and varGlobSet
 	private static void opAssign (int type, boolean listElorField, Token opAssType, boolean se ) throws Exc {
 		Transl.ins(Operator.DUPL, 0);
 		if ( listElorField )
@@ -1102,38 +1153,37 @@ public class Parser {
 		else
 			Transl.ins(Operator.DEREF, 0);
 		lex.nextToken();
-		int typeExp = ifExpr(se); 
-		if ( typeExp >= Exec.FuncT )
-			throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+		int typeExp = ifExp(se); 
+		if ( isFunction(typeExp) )
+			throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 					Exec.types[Exec.FuncT]+"- a function cannot be assigned to a variable");		 		 		
-		if ( type!=Exec.NoType && typeExp != Exec.NoType )
-			if ( isNumber(type) && !isNumber(typeExp) )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-						Exec.types[typeExp]+"- expected types: double or long or int or char");		 		 
-			else
-				if ( type == Exec.ListT && typeExp != Exec.ListT )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							Exec.types[typeExp]+"- expected type: list");
-				else
-					if ( type == Exec.StringT && !(typeExp == Exec.StringT || typeExp == Exec.CharT) )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[typeExp]+"- expected type: string or char");
 		if ( opAssType==Token.PLUS) {
+			checkGenNum(type); checkGenNum(typeExp);
 			Transl.ins(Operator.ADD, 0);
 			return;
 		}
+		if ( opAssType==Token.PLUSPLUS) {
+			checkGenStringList(type,typeExp);
+			Transl.ins(Operator.ADDLS, 0);
+			return;
+		}
 		if ( opAssType==Token.MINUS ) {
+			checkGenNum(type); checkGenNum(typeExp);
 			Transl.ins(Operator.SUB, 0);
 			return;
 		}
 		if ( opAssType==Token.STAR) {
+			checkGenNum(type); checkGenNum(typeExp);
 			Transl.ins(Operator.MULT, 0);
 			return;
 		}
 		if ( opAssType==Token.DIV) {
+			checkGenNum(type); checkGenNum(typeExp);
 			Transl.ins(Operator.DIV, 0);
 			return;
 		}
+		// opAssType == Token.DIVTR
+		checkGenNum(type); checkGenNum(typeExp);
 		Transl.ins(Operator.DIV, 0);
 		Transl.ins(Operator.TOINT, 0);
 	}
@@ -1154,7 +1204,7 @@ public class Parser {
 	}
 		//<factFI> -> OSPAR [ <factFI> { [COMMA]  <factFI> } ] CSPAR  | 
 	    //			  OBRACE [ STRING COLON <factFI> [ COMMA STRING COLON <factFI> ]* CBRACE |
-		// 			    [ PLUS | MINUS ] ( INT | LONG | DOUBLE ) | CHAR | STRING | NULL | TRUE | FALSE | TYPE
+		// 			    [ PLUS | MINUS ] ( INT | LONG | DOUBLE ) | CHAR | STRING | NULL | BOOL | TYPE
 	private static void factFI(Lex lexFI, boolean copyElem ) throws Exc {
 		 if ( lexFI.currToken() == Token.OSPAR ) {
 			 if ( copyElem )
@@ -1312,35 +1362,21 @@ public class Parser {
 			 lexFI.nextToken();
 			 return;
 		 }
-		 if ( lexFI.currToken() == Token.TRUE ) {
+		 if ( lexFI.currToken() == Token.BOOL ) {
 		 	 	 if( copyElem )
-					 writeFI(opStr(Operator.PUSHB)+" "+1);
-		 	 		 // Transl.ins(Operator.PUSHB,1);
+		 	 		 if (lexFI.valBool())
+		 	 			 writeFI(opStr(Operator.PUSHB)+" "+1);
+		 	 		 else
+		 	 			writeFI(opStr(Operator.PUSHB)+" "+0);
 				 lexFI.nextToken();
 				 return;
 		 }
-		 if ( lexFI.currToken() == Token.FALSE ) {
-		 	 	 if( copyElem )
-					 writeFI(opStr(Operator.PUSHB)+" "+0);
-		 	 		 // Transl.ins(Operator.PUSHB,0);
-				 lexFI.nextToken();
-				 return;
-	 	 }
 		 if ( lexFI.currToken() == Token.TYPE ) {
-			 if ( lexFI.currType() == Exec.TypeT ) {
-			 	 if( copyElem )
-					 writeFI(opStr(Operator.PUSHMT)+" "+0);
-			 		 // Transl.ins(Operator.PUSHMT,0);
-				 lexFI.nextToken();
-				 return;				 
-			 }
-			 else { 
 			 	 if( copyElem )
 					 writeFI(opStr(Operator.PUSHT)+" "+lexFI.currType());
 			 		 // Transl.ins(Operator.PUSHT,lexFI.currType());
 				 lexFI.nextToken();
 				 return;
-			 }
 		 }		
 		 throw raiseExcFI(lexFI,first_factFI); 
 	}
@@ -1348,30 +1384,27 @@ public class Parser {
 	 // method called by factFI 
 	 static void getStringFI(String s ) throws Exc {
 		 writeFI(opStr(Operator.SSTRING)+" "+0);
-		 // Transl.ins(Operator.SSTRING,0);
 		 for ( int i =0; i <s.length(); i++ ) {
 			 writeFI(opStr(Operator.PUSHC)+" "+(int)s.charAt(i));
-			 // Transl.ins(Operator.PUSHC, s.charAt(i));
 			 writeFI(opStr(Operator.CSTRING)+" "+0);
-			 // Transl.ins(Operator.CSTRING, 0 );
 		 }
 		 writeFI(opStr(Operator.ESTRING)+" "+0);
-		 // Transl.ins(Operator.ESTRING,0);
 	 }
 
 
-	// <funcDef> -> OPAR [<formalPar> { COMMA <formalPar> } ] CPAR  
+	// <funcDef> -> OPAR [<formPar> { COMMA <formPar> } ] CPAR  
 	// 					[ DIV INT ] MAP [COMMENT]
-	//					[LT ID1 [STAR] { COMMA ID1 [STAR] } GT] <ifExprSet>
+	//					[LT ID [STAR] { COMMA ID [STAR] } GT] <fbody>
+
 	 static void funcDef ( String idN, boolean se, boolean hasLabel, String label ) throws Exc {
 		 lex.accept(Token.OPAR );
 		 SymbH.funcDef(se,ioh.nUtil());
 		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.UNDERSCORE) {
-			 formalPar( se );
+			 formPar( se );
 			 while ( lex.currToken() == Token.COMMA ) {
 				 lex.printH_Comma(true); // print space after comma in history
 				 lex.nextToken();
-				 formalPar( se );
+				 formPar( se );
 			 }
 		 }
 		 lex.accept(Token.CPAR );
@@ -1416,7 +1449,7 @@ public class Parser {
 	 				 if ( lex.currToken() == Token.STAR ) {
 	 					 lex.nextToken();
 	 	 				 if ( !se )
-	 	 					 throw new Exc_Synt(ErrorType.GLOB_VAR_IN_FUNCT, " without side effects");	 					 
+	 	 					 throw new Exc_Synt(ErrorType.GLOB_VAR_NO_SE_FUNCT);	 					 
 	 	 				 SymbH.addCurrLabel(idNLV);
 	 				 }
 	 				 else {
@@ -1438,14 +1471,27 @@ public class Parser {
 	 	 Transl.ins(Operator.START,SymbH.indCurrDef(),"* "+idN);
 	 	 if ( nLocVars>0 )
 	 		 Transl.ins(Operator.ALLOC,nLocVars);
-	 	 int retType=ifExprSet(se,idN);
-	 	 if ( retType>=Exec.FuncT )
-	 		 SymbH.checkRetType(SymbH.functType,retType-Exec.FuncT);
+//	 	 int retType=ifSet(se,idN);
+	 	 GuardRet gr= fBody(se,idN);
+	 	 if ( isFunction(gr.exprt) ) 
+		 	 if (gr.fc.hasFunctParams)
+					throw new Exc_Sem(ErrorType.WRONG_RET_TYPE, 
+					"-- a returned function cannot have function parameters");
+		 	 else
+			 	 if (!se && gr.fc.hasSideEffect)
+						throw new Exc_Sem(ErrorType.WRONG_RET_TYPE, 
+						"-- returned function with side effects");		 		 
+		 	 else	 		 
+	 		        SymbH.checkRetType(SymbH.functType,gr.fc.numParams);
 	 	 else
-	 		SymbH.checkRetType(SymbH.varType,0);
+		 	 if (isLabel(gr.exprt))
+					throw new Exc_Sem(ErrorType.WRONG_RET_TYPE, 
+					"-- a function cannot return a label");
+		 	 else
+		 		 SymbH.checkRetType(SymbH.varType,0);
 	 	 Transl.ins(Operator.RETURN,SymbH.nParFdef());
-	 	 if ( isTailOpt )
-	 		 Transl.tailRecOpt(SymbH.indCurrDef(),SymbH.nParFdef());
+//	 	 if ( isTailOpt )
+//	 		 Transl.tailRecOpt(SymbH.indCurrDef(),SymbH.nParFdef());
 	 	 SymbH.endFdef(Transl.end());		 
 	}
 
@@ -1461,7 +1507,7 @@ public class Parser {
 		 if ( lex.currToken() == Token.STAR ) {
 				 lex.nextToken();
  				 if ( !se )
- 					 throw new Exc_Synt(ErrorType.GLOB_VAR_IN_FUNCT, " without side effects");	 					 
+ 					 throw new Exc_Synt(ErrorType.GLOB_VAR_NO_SE_FUNCT);	 					 
 				 SymbH.addCurrLabel(idN);
 		 }
 		 else {
@@ -1470,8 +1516,8 @@ public class Parser {
 		 }
 	 }
 
-		// <formalPar> ->  ID1 [ DIV INT ]
-	 static void formalPar ( boolean se ) throws Exc {
+		// <formalPar> ->  ( ID | UNDERSCORE) [ DIV INT ]
+	 static void formPar ( boolean se ) throws Exc {
 		 if ( lex.currToken() == Token.ID || lex.currToken() == Token.UNDERSCORE ) {
 			 String idN = "_";
 			 if ( lex.currToken() == Token.ID ) {
@@ -1496,72 +1542,117 @@ public class Parser {
 			 throw new Exc_Synt(ErrorType.WRONG_TOKEN,lex.tokenFullDescr()+
 					 " - expected: 'ID' or '_'");
 	}
-
-	 //<ifExprSet> ->  { <globSet> } ( EXC OPAR  <ifExpr> CPAR |  
-	//						           <orExpr> ( { <globSet> } | QMARK <ifExprSet> COLON <ifExprSet> ) )
-	 static int ifExprSet ( boolean se, String idN ) throws Exc {
-		 while ( lex.currToken() == Token.OBRACESET || 
-				 lex.currToken() == Token.OBRACEPRINT ) 
-			 globSet(se); 
-		 if ( lex.currToken() == Token.EXC ) {
-			 lex.nextToken();
-			 lex.setTruncatableString(false); // exc string cannot be truncated
-			 lex.accept(Token.OPAR);
-			 int exc_t=ifExpr(se);
-			 if ( exc_t != Exec.NoType && exc_t != Exec.StringT )
-					throw new Exc_Synt(ErrorType.STRING_EXPECTED, 
-							 Exec.types[exc_t]+"- expected type: string");
-			 printExc(idN);
-			 lex.setTruncatableString(true); // by default string are truncatable
-			 lex.accept(Token.CPAR);
-			 Transl.ins(Operator.THROWE,0);
-			 return Exec.StringExcF; // type exception as a string
-		 }
-//		 if ( lex.currToken() == Token.LAMBDA) {
-//			 if ( !SymbH.checkFunctRet() )
-//					throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
-//							"- it must be defined inside a function returning a function");
-//			 int retType=lambda(false,0,0,0); // false since lambda cannot be a function parameter 
-//			 if ( !SymbH.checkLambdaRetArity() )
-//					throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
-//							"- the lambda function arity is different from the defining function arity return");			 
-//			 if ( lex.currToken() != Token.COLON &&  lex.currToken() != Token.SCOLON ) 
-//				 throw new Exc_Synt(ErrorType.WRONG_LAMBDA, 
-//						"-- expected ':' or ';' to terminate lambda function definition - found " + lex.tokenFullDescr());					 			 
-//			 return retType;
-//		 }
-
-		 boolean  isSE=se;
-		 int cexpr_t = orExpr(isSE); 
-		 if ( lex.currToken() == Token.QMARK ) {
-			 if ( cexpr_t != Exec.BoolT &&  cexpr_t != Exec.NoType ) 
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[cexpr_t]+"- expected type: bool");
-			 lex.nextToken();
-			 int iJumpE = Transl.ins(Operator.JUMPZ,0);
-			 int ifExpr1_t = ifExprSet(se,idN);
-			 int iJumpT = Transl.ins(Operator.JUMP,0);
-			 lex.printH_Colon(true); // print spaced COLON on history
-			 lex.accept(Token.COLON );
-			 int labelE = Transl.ins(Operator.NEXT,0);
-			 Transl.modOperand(iJumpE, labelE);
-			 int ifExpr2_t = ifExprSet(se,idN);
-			 int labelT = Transl.ins(Operator.NEXT,0);
-			 Transl.modOperand(iJumpT, labelT);
-			 if ( ifExpr1_t == ifExpr2_t )
-				 return ifExpr1_t;
+	 
+	 // <guard> ::= { <set> } <ifExp> ":" { <set> } <ifExp> { <set> }
+	 static GuardRet guard( boolean se, boolean firstGuard, String idN, ArrayList<Integer> jumpLab, GuardRet guardp ) throws Exc {
+		 while ( inFirst(first_set) ) 
+			 set(se,idN);		 
+		 int ifExpr1_t = ifExp(se);
+		 if ( ifExpr1_t != Exec.BoolT &&  ifExpr1_t != Exec.GenT ) 
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExpr1_t]+"- expected type: bool");
+		 lex.printH_Colon(true); // print spaced COLON on history
+		 lex.accept(Token.COLON);
+		 int iJumpE = Transl.ins(Operator.JUMPZ,0);
+		 while ( inFirst(first_set) ) 
+			 set(se,idN); 
+		 int ifExpr2_t = ifExp(se);
+		 FunctCalled fc=null;
+		 if ( isFunction(ifExpr2_t) )
+			 fc=currFunctCalled;
+		 int retType=ifExpr2_t;
+		 if ( !firstGuard ) 
+			 if ( ifExpr2_t == guardp.exprt ) 
+				 if ( isFunction(ifExpr2_t) && !FunctCalled.equiv(fc,guardp.fc) )
+					 throw new Exc_Synt(ErrorType.WRONG_FTYPE, 
+								Exec.types[guardp.exprt]+" and "+Exec.types[ifExpr2_t]+
+								"-- the guarded alternative functions must have the same signature");
+				 else
+					 retType= ifExpr2_t;
 			 else
-				 return Exec.NoType;
+				 if (isNumber(guardp.exprt) && isNumber(ifExpr2_t))
+					 retType= guardp.exprt < ifExpr2_t? guardp.exprt: ifExpr2_t;
+				 else
+					 if ( isFunction(guardp.exprt) || isFunction(ifExpr2_t) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[guardp.exprt]+" and "+Exec.types[ifExpr2_t]+
+							"-- if a guarded alternative is a function, all alternatives must be functions");
+					 else // different types are instead allowed for operands of type variable
+						 retType = Exec.GenT;	 
+		 while ( inFirst(first_set) ) 
+			 set(se,idN); 
+		 int iJumpT = Transl.ins(Operator.JUMP,0);
+		 jumpLab.add(iJumpT);
+		 int labelE = Transl.ins(Operator.NEXT,0);
+		 Transl.modOperand(iJumpE, labelE);
+		 return new GuardRet(retType,fc);
+	 }
+
+	 // <fBody> ::= { <set> } [ "|" <guard> "|" { <guard> "|" } ":" ] { <set> } <ifExp> { <set> }
+	 static GuardRet fBody ( boolean se, String idN ) throws Exc {
+		 boolean  isSE=se;
+		 while ( inFirst(first_set) ) 
+			 set(se,idN);
+		 boolean guarded = false;
+		 GuardRet guard1=null, guard2=null;
+		 int initCapacityJumpLab=20;
+		 ArrayList<Integer> jumpLab=new ArrayList<Integer>(initCapacityJumpLab);
+		 if ( lex.currToken() == Token.PIPE ) {
+			 guarded=true;
+			 lex.nextToken();
+			 guard1=guard(isSE,true, idN, jumpLab,null);
+			 lex.accept(Token.PIPE);
+			 while (inFirst(first_ifExp) || inFirst(first_set)) {
+				 guard2=guard(isSE,false,idN,jumpLab,guard1);
+				 guard1=guard2;
+				 lex.accept(Token.PIPE);
+			 }
+			 lex.printH_Colon(true); // print spaced COLON on history
+			 lex.accept(Token.COLON);
 		 }
-		 else {
-			 while ( lex.currToken() == Token.OBRACESET || 
-					 lex.currToken() == Token.OBRACEPRINT ) 
-					 globSet(se); 
-			 return cexpr_t;
+		 while ( inFirst(first_set) ) 
+			 set(se,idN);
+		 int ifExpr_t = ifExp(se);
+		 FunctCalled fc=null;
+		 if ( isFunction(ifExpr_t) )
+			 fc=currFunctCalled;
+		 GuardRet grv=null;
+		 if ( guarded ) {
+			 if ( ifExpr_t == guard1.exprt ) 
+				 if ( isFunction(ifExpr_t) && !FunctCalled.equiv(fc,guard1.fc) )
+					 throw new Exc_Synt(ErrorType.WRONG_FTYPE, 
+								Exec.types[guard1.exprt]+" and "+Exec.types[ifExpr_t]+
+								"-- the guarded alternative functions must have the same signature");
+				 else
+					 grv=new GuardRet(ifExpr_t,fc);
+			 else
+				 if (isNumber(guard1.exprt) && isNumber(ifExpr_t)) {
+					 int retType= guard1.exprt < ifExpr_t? guard1.exprt: ifExpr_t;
+					 grv=new GuardRet(retType,fc);
+				 }
+				 else
+					 if ( isFunction(guard1.exprt) || isFunction(ifExpr_t) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[guard1.exprt]+" and "+Exec.types[ifExpr_t]+
+							"-- if a guarded alternative is a function, all alternatives must be functions");
+					 else // different types are instead allowed for operands of type variable
+						 grv=new GuardRet(Exec.GenT, fc);		 
 		 }
+		 else
+			 grv=new GuardRet(ifExpr_t,fc);
+		 while ( inFirst(first_set) ) 
+			 set(se,idN);		 
+		 if ( guarded ) {
+			 int lastLab = Transl.ins(Operator.NEXT,0);
+			 for ( int i=0; i<jumpLab.size(); i++ ) {
+				 int jumpT = jumpLab.get(i);
+				 Transl.modOperand(jumpT, lastLab);
+			 }				 
+		 }
+		return grv;  
 	}
 	 
-	 	// called by ifExprSet
+	 	// called by dSet
 	 static void printExc(String idN) throws Exc {
 		 Transl.ins(Operator.SSTRING,0);
 		 for ( int i =0; i <idN.length(); i++ ) {
@@ -1571,67 +1662,85 @@ public class Parser {
 		 Transl.ins(Operator.ESTRING,0);
 		 
 	 }
-
-	 // <globSet> -> OBRACESET  (ID <varGlobSet> | UNDERSCORE ASSIGN <ifExpr> ) 
-	 //						{ CONTINUE (ID <varGlobSet> | UNDERSCORE ASSIGN <ifExpr> ) }
-	 //				 CBRACESET  | 
-	 //				 OBRACEPRINT <printGlobSet> CBRACEPRINT 
-		 static void globSet ( boolean se ) throws Exc {
-			 	 if ( lex.currToken() == Token.OBRACESET ) {
-			 		do {
-			 		lex.nextToken();
-					 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) 
-						 varGlobSet(se);
+	 
+	 // <set> -> OBRACESET ( <prSet> | <ioSet>)  { CONTINUE ( <prSet> | <ioSet>) } CBRACESET  | 
+		 static void set ( boolean se, String idN ) throws Exc {
+		 	 if ( lex.currToken() == Token.OBRACESET ) {
+			 	 do { 
+			 		 lex.nextToken();
+					 if ( inFirst(first_prSet) ) 
+						 prSet(se,idN);
+					 else
+						 if ( inFirst(first_ioSet) ) 
+							 ioSet(se);
+						 
 					 else 
-						 if ( lex.currToken() == Token.UNDERSCORE) {
-							 lex.nextToken();
-						 	 lex.printH_Assign(false); // print assign without spaces on history
-							 lex.accept(Token.ASSIGN);
-							 int retType=ifExpr(se);
-							 if ( retType >= Exec.FuncT )
-									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											Exec.types[Exec.FuncT]+"- a function cannot be used into a Global Setting");		 		 									 
-							 Transl.ins(Operator.POP,0);							 
-						 }
-						 else 
-							 throw new Exc_Synt(ErrorType.EXPECTED_ID_OR_DUMMY," -- found "+
-									 		lex.tokenFullDescr());
-			 		} while ( lex.currToken() == Token.CONTINUE );
-					lex.accept(Token.CBRACESET);
-			 	 }
-			 	 else {
-			 		 //lex.nextToken();
-					 printGlobSet(se);
-					 lex.accept(Token.CBRACEPRINT );
-			 	 }
-	 }
+						 raiseExc(first_pr_ioSet);
+			 	 } while ( lex.currToken() == Token.CONTINUE );
+				lex.accept(Token.CBRACESET);
+		 	 }
+		 	 else 
+				throw new Exc_Synt(ErrorType.EXPECTED_SET_BRACE," -- found "+
+						 		lex.tokenFullDescr());			 		 
+		 }
+		 
+			 
+		 // <prSet> ->  ( ID | IDL ) { OSPAR <ifExp> CSPAR } ( OPASSIGN <ifExp> | ASSIGN ( <ifExp> | HASH NULL  ) 
+		 //           | OSPAR <ifExp> CSPAR | EXC OPAR <ifExp> COMMA <ifExp> CPAR
+		 static void prSet ( boolean se, String idN ) throws Exc {
+				 if ( lex.currToken() == Token.EXC ) {
+					 lex.nextToken();
+					 lex.accept(Token.OPAR);
+					 int ifexpr_t = ifExp(se);
+					 if ( ifexpr_t != Exec.BoolT && ifexpr_t != Exec.GenT ) //**
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										Exec.types[ifexpr_t]+"- expected type: boolean");
+					 int iJumpE = Transl.ins(Operator.JUMPZ,0);
+	 				 lex.printH_Comma(false); // no space after comma in history
+					 lex.accept(Token.COMMA);
+					 lex.setTruncatableString(false); // exc string cannot be truncated
+					 int exc_t=ifExp(se);
+					 if ( exc_t != Exec.GenT && exc_t != Exec.StringT )
+							throw new Exc_Synt(ErrorType.STRING_EXPECTED, 
+									 Exec.types[exc_t]+"- expected type: string");
+					 printExc(idN);
+					 lex.setTruncatableString(true); // by default string are truncatable
+					 lex.accept(Token.CPAR);
+					 Transl.ins(Operator.THROWE,0);
+					 int labelT = Transl.ins(Operator.NEXT,0);
+					 Transl.modOperand(iJumpE, labelT);
+				 }
+				 else 
+					 if ( lex.currToken() == Token.OSPAR){
+						 lex.nextToken();
+						 if ( !se )
+								throw new Exc_Synt(ErrorType.NO_SE_FUNC, 
+										"- the operator '[exp]' requires the currently defined function to be with side effects");		 		 									 
+						 int retType=ifExp(true);
+						 if ( isFunction(retType) )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										Exec.types[Exec.FuncT]+"- a function cannot be used into a Global Setting");		 		 									 
+						 if ( isLabel(retType) )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										Exec.types[Exec.LabT]+"- a label cannot be used into a Global Setting");		 		 		
+						 Transl.ins(Operator.POP,0);
+						 lex.accept(Token.CSPAR);
+					 }
+					 else
+						 vSet(se);
+		 }
 	 
-	 // <printGlobSet> -> <ifExpr> [ PRINTOPT ] { CONTINUE <ifExpr> [ PRINTOPT ] }
-	 static void printGlobSet ( boolean se ) throws Exc {
-	 		do {
-	 			lex.nextToken();
-		 		int typeExp=ifExpr(se); 
-				if ( typeExp >= Exec.FuncT )
-			 		Transl.ins(Operator.FUNCF,0);
-//					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-//							Exec.types[Exec.FuncT]+"- a function cannot be printed");		 		 		
-		 		if ( lex.currToken() == Token.PRINTOPT) {
-					Transl.ins(Operator.PRINT,lex.indPrint());
-					lex.nextToken();
-		 		}
-		 		else
-		 			Transl.ins(Operator.PRINT,0);
-	 		} while ( lex.currToken() == Token.CONTINUE );
-	 }
-	 
-	 // <varGlobSet> ->  [ OSPAR <ifExpr> CSPAR ]* ( OPASSIGN <ifExpr> |
-	 //				     ASSIGN ( HASH NULL | <ifExpr>  ) 
-	 static void varGlobSet ( boolean se ) throws Exc {
+	 // called by vSet and by ioSet
+	static boolean vSetLeft ( boolean se ) throws Exc {
 		 boolean listElOrField=false;		
 		 String idN = lex.IDName(); 
+		 if ( SymbH.isLabel(idN) )
+				throw new Exc_Synt(ErrorType.WRONG_LAB_SET, " " + idN);
 		 boolean hasLabel=lex.currToken()==Token.IDL;
 		 String label =   hasLabel? lex.currLabel(): null;
-		 int type = SymbH.setCurrID(idN,hasLabel,label,setLabel,setLabelID);
+		 if ( hasLabel && !SymbH.isLabel(label) )
+				throw new Exc_Sem(ErrorType.UNDEF_LABEL, ": "+label);
+		 int type = SymbH.setCurrID(idN,se,hasLabel,label,setLabel,setLabelID);
 		 if ( type == SymbH.undefID )
 				throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idN);
 		 if ( type == SymbH.functType )
@@ -1639,7 +1748,7 @@ public class Parser {
 		 if ( SymbH.isParam() ) 
 			 if ( se ) {
 				 int nPar = SymbH.nParCurrFunDef();
-				 Transl.ins(Operator.LOADARG,nPar-SymbH.iCurrVarFunc());
+				 Transl.ins(Operator.LOADPAR,nPar-SymbH.iCurrVarFunc());
 			 }
 			 else
 				 throw new Exc_Synt(ErrorType.NO_PAR_SET);
@@ -1648,39 +1757,48 @@ public class Parser {
 				 Transl.ins(Operator.LOADLV,SymbH.iCurrVarFunc());
 			 else // SymbH.isLabGlobVar() is true
 					 Transl.ins(Operator.LOADGV,SymbH.iCurrVarFunc()); 
-		 lex.nextToken(); listElOrField=false;
- 		 if ( lex.currToken() == Token.OSPAR ) {
-			 lex.nextToken(); listElOrField=true;
-			 if ( inFirst(first_expr) ) {
+		 lex.nextToken(); 
+
+		 if ( lex.currToken() == Token.OSPAR ) {
+			 lex.nextToken(); 
+			 listElOrField=true;
+			 if ( inFirst(first_ifExp) ) {
 			 	 Transl.ins(Operator.DEREF,0);
-				 type=ifExpr(se);
-				 if ( type != Exec.NoType && !isInteger(type) && type != Exec.StringT )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				 type=ifExp(se);
+				 if ( type != Exec.GenT && !isIntegerOrChar(type) && type != Exec.StringT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[type]+"- expected types: int or char or string");
 				 Transl.ins(Operator.LJEL,0); 
 				 lex.accept(Token.CSPAR);
 		 		 while ( lex.currToken() == Token.OSPAR ) {
 		 			 lex.nextToken();
-					 if ( inFirst(first_expr) ) {
+					 if ( inFirst(first_ifExp) ) {
 					 	 Transl.ins(Operator.HDFLDV,0);
-						 type=ifExpr(se);
-						 if ( type != Exec.NoType && !isInteger(type) && type != Exec.StringT )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+						 type=ifExp(se);
+						 if ( type != Exec.GenT && !isIntegerOrChar(type) && type != Exec.StringT )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 										Exec.types[type]+"- expected types: int or char or string");
 						 Transl.ins(Operator.LJEL,0); 
 						 lex.accept(Token.CSPAR);
 					 }				 
 					 else 
-						 throw raiseExc(first_expr);
+						 throw raiseExc(first_ifExp);
 				 }
 			 }
 			 else 
-				 throw raiseExc(first_expr);	
- 		 }
- 		 if ( lex.currToken()==Token.OPASSIGN ) {
+				 throw raiseExc(first_ifExp);	
+		 }
+		 return listElOrField;
+	}
+
+	 // called by prSet to implement the syntax below:
+	 // ( ID | IDL ) { OSPAR <ifExp> CSPAR } ( OPASSIGN <ifExp> | ASSIGN ( <ifExp> | HASH NULL  ) 
+	 static void vSet ( boolean se ) throws Exc {
+		 boolean listElOrField=vSetLeft(se);		
+ 		 if ( lex.currToken()==Token.OPASS ) {
  			 Token assOpType = lex.currAssOp();
 		 	 lex.printH_OpAssign(assOpType,false); // print op-assign without spaces on history
- 			 opAssign(Exec.NoType, listElOrField, assOpType,se); 
+ 			 opAssign(Exec.GenT, listElOrField, assOpType,se); 
  		 }
  		 else {
 		 	 lex.printH_Assign(false); // print assign without spaces on history
@@ -1700,10 +1818,13 @@ public class Parser {
 				 }
 			 }
 			 else {
-				 int typeExp=ifExpr(se);
-				 if ( typeExp >= Exec.FuncT )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				 int typeExp=ifExp(se);
+				 if ( isFunction(typeExp) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[Exec.FuncT]+"- a function cannot be assigned to a variable");		 		 		
+				 if ( isLabel(typeExp) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[Exec.LabT]+"- a label cannot be assigned to a variable");		 		 		
 			 }
  		 }
 		 if ( listElOrField )
@@ -1712,37 +1833,98 @@ public class Parser {
 			 Transl.ins(Operator.MODV,0);	
 	 }
 
-
+	 // <ioSet> -> PRINT OPAR <ifExpr> [ PRINTOPT ] CPAR | GT OPAR <ifExpr> CPAR | 
+	 // LT OPAR ( ID | IDL ) { OSPAR <ifExp> CSPAR } CPAR 
+	 static void ioSet ( boolean se ) throws Exc {
+		 if ( lex.currToken() == Token.GTLT && lex.GTLT_Op()==GTLTOpType.GT) { // interactive display
+			 if ( !se ) 
+					throw new Exc_Synt(ErrorType.SE_DISPLAY);		 		 		
+			 lex.nextToken(); lex.accept(Token.OPAR);
+			 int typeExp=ifExp(false); // no side effects allowed
+			 if ( isFunction(typeExp) )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[Exec.FuncT]+"- a function cannot be displayed");		 		 		
+			 if ( isLabel(typeExp) )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[Exec.LabT]+"- a label cannot be displayed");		 		 		
+			 Transl.ins(Operator.DISPLAY,0);
+			 lex.accept(Token.CPAR);
+		 }
+		 else
+			 if ( lex.currToken() == Token.GTLT && lex.GTLT_Op()==GTLTOpType.LT) { 
+				 // (interactive) read of a text line from console 
+				 // the text is interpreted as a value to be stored
+				 // into a variable or list element or JSON field
+				 if ( !se ) 
+						throw new Exc_Synt(ErrorType.SE_DISPLAY);		 		 		
+				 lex.nextToken(); lex.accept(Token.OPAR);
+				 boolean listElOrField=vSetLeft(false); // no side effects allowed
+				 Transl.ins(Operator.READL,0);
+				 Transl.ins(Operator.EXECF,0);
+				 if ( listElOrField )
+					 Transl.ins(Operator.MODVEL,0);
+				 else
+					 Transl.ins(Operator.MODV,0);	
+				 lex.accept(Token.CPAR);
+			 }
+			 else { // print on the output
+		 		lex.nextToken(); //Current Token must be PRINT
+				lex.accept(Token.OPAR);
+		 		ifExp(se); 
+//		 		int typeExp=ifExp(se); 
+//				if ( isFunction(typeExp) )
+//			 		Transl.ins(Operator.OUTF,0);
+		 		if ( lex.currToken() == Token.PRINTOPT) {
+					Transl.ins(Operator.PRINT,lex.indPrint());
+					lex.nextToken();
+		 		}
+		 		else
+		 			Transl.ins(Operator.PRINT,0);
+				lex.accept(Token.CPAR);
+			 }
+	 }
+	
 	//**<ifExpr> ->  <orExpr(se)> [ QMARK <ifExpr> COLON <ifExpr> ]
-	 static int ifExpr ( boolean se ) throws Exc {
+	 static int ifExp ( boolean se ) throws Exc {
 		 int cexpr_t = orExpr(se);
 		 if ( lex.currToken() == Token.QMARK ) {
-			 if ( cexpr_t != Exec.BoolT && cexpr_t != Exec.NoType ) //**
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+			 if ( !isBool(cexpr_t) ) 
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[cexpr_t]+"- expected type: boolean");
 			 lex.nextToken();
 			 int iJumpE = Transl.ins(Operator.JUMPZ,0);
-			 int ifExpr1_t = ifExpr(se);
+			 int ifExpr1_t = ifExp(se);
+			 FunctCalled fc1=null;
+			 if ( isFunction(ifExpr1_t) )
+				 fc1=currFunctCalled;
 			 int iJumpT = Transl.ins(Operator.JUMP,0);
 			 lex.printH_Colon(true); // print spaced COLON on history
 			 lex.accept(Token.COLON );
 			 int labelE = Transl.ins(Operator.NEXT,0);
 			 Transl.modOperand(iJumpE, labelE);
-			 int ifExpr2_t = ifExpr(se);
+			 int ifExpr2_t = ifExp(se);
+			 FunctCalled fc2=null;
+			 if ( isFunction(ifExpr2_t) )
+				 fc2=currFunctCalled;
 			 int labelT = Transl.ins(Operator.NEXT,0);
 			 Transl.modOperand(iJumpT, labelT);
 			 if ( ifExpr2_t == ifExpr1_t ) 
-				 return ifExpr1_t;
-			 else
-				 if (isNumber(ifExpr1_t) && isNumber(ifExpr2_t))
-					 return ifExpr1_t < ifExpr2_t? ifExpr1_t: ifExpr2_t;
-				 else // different signatures are not allowed for function operands
-					 if ( ifExpr1_t >= Exec.FuncT || ifExpr2_t >= Exec.FuncT )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[ifExpr1_t]+" and "+Exec.types[ifExpr2_t]+
-									"if one alternative type for '?:' is function, both must be functions with the same arity");
-					 else // different types are instead allowed for variable operands
-						 return Exec.NoType;
+				 if ( isFunction(ifExpr1_t) && !FunctCalled.equiv(fc1,fc2) )
+					 throw new Exc_Synt(ErrorType.WRONG_FTYPE, 
+								Exec.types[ifExpr1_t]+" and "+Exec.types[ifExpr2_t]+
+								"-- the two alternative functions for '?:' must have the same signature");
+				 else 
+					 return ifExpr1_t;
+			 if ( isFunction(ifExpr1_t) || isFunction(ifExpr2_t) )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[ifExpr1_t]+" and "+Exec.types[ifExpr2_t]+
+					"-- if an alternative for '?:' is a function, both alternatives must be functions");
+			 if ( isLabel(ifExpr1_t) || isLabel(ifExpr2_t)  )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[ifExpr1_t]+" and "+Exec.types[ifExpr2_t]+
+					"-- if an alternative for '?:' is a label, both alternatives must be labels");		 
+
+			 return mostGeneralType(ifExpr1_t, ifExpr2_t);
 		 }
 		 else
 			 return cexpr_t;
@@ -1750,11 +1932,11 @@ public class Parser {
 
 	// <orExpr(se)> -> <andExpr> { OR <andExpr> }
 	 static int orExpr ( boolean se ) throws Exc {
-		 if ( inFirst(first_orExpr) ) {
+		 if ( inFirst(first_orExp) ) {
 			 int cterm_t = andExpr(se);
 			 if ( lex.currToken() == Token.OR ) { 
-				 if ( cterm_t != Exec.BoolT && cterm_t != Exec.NoType ) 
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				 if ( !isBool(cterm_t) ) 
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 									Exec.types[cterm_t]+"- expected type: boolean");
 				 int iJumpE = Transl.ins(Operator.JUMPNZ,0);
 				 int labelE = orExpr_next(se);
@@ -1762,21 +1944,21 @@ public class Parser {
 				 return Exec.BoolT;
 			 }
 			 else
-				 if ( inFirst(follows_orExpr_next) )
+				 if ( inFirst(follows_orExp_next) )
 					 return cterm_t;
 				 else 
-					 throw raiseExc(follows_orExpr_next);
+					 throw raiseExc(follows_orExp_next);
 		 }
 		 else 
-			 throw raiseExc(first_orExpr);
+			 throw raiseExc(first_orExp);
 	}
 	 
 	 // method called by orExpr
 	 static int orExpr_next(boolean se ) throws Exc {
 		 lex.nextToken(); // skip token OR
 		 int cterm_t = andExpr(se);
-		 if ( cterm_t != Exec.BoolT && cterm_t != Exec.NoType )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+		 if ( !isBool(cterm_t) )
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 						Exec.types[cterm_t]+"- expected type: boolean");
 		 int labelE;
 		 if ( lex.currToken() == Token.OR ) { 
@@ -1785,14 +1967,14 @@ public class Parser {
 			 Transl.modOperand(iJumpE, labelE);
 		 }
 		 else 
-			 if (inFirst(follows_orExpr_next)  ){
+			 if (inFirst(follows_orExp_next)  ){
 				 int iJ1 = Transl.ins(Operator.JUMP,0);
 				 labelE =  Transl.ins(Operator.PUSHB,1);
 				 Transl.ins(Operator.NEXT,0);
 				 Transl.modOperand(iJ1, labelE+1);
 			 }
 			 else
-				 throw raiseExc(follows_orExpr_next);
+				 throw raiseExc(follows_orExp_next);
 		 return labelE;
 	 }
 
@@ -1800,11 +1982,11 @@ public class Parser {
 
 	// <andExpr> ->  <eqExpr> { AND <eqExpr> }
 	 static int andExpr ( boolean se ) throws Exc {
-		 if ( inFirst(first_andExpr) )  {  
+		 if ( inFirst(first_andExp) )  {  
 			 int cfact_t = eqExpr(se);
 			 if ( lex.currToken() == Token.AND ) { 
-				 if ( cfact_t != Exec.BoolT && cfact_t != Exec.NoType )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				 if ( !isBool(cfact_t) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[cfact_t]+"- expected type: boolean");
 				 int iJumpE = Transl.ins(Operator.JUMPZ,0);
 				 int labelE = andExpr_next(se);
@@ -1812,21 +1994,21 @@ public class Parser {
 				 return Exec.BoolT;
 			 }
 			 else 
-				 if ( inFirst(follows_andExpr_next) )
+				 if ( inFirst(follows_andExp_next) )
 						 return cfact_t;
 				 else
-					 throw raiseExc(follows_andExpr_next);
+					 throw raiseExc(follows_andExp_next);
 		 }
 		 else 
-			 throw raiseExc(first_andExpr);
+			 throw raiseExc(first_andExp);
 	}
 	 
 	 // method called by andExpr
 	 static int andExpr_next(boolean se ) throws Exc {
 		 lex.nextToken();
 		 int cfact_t = eqExpr(se);
-		 if ( cfact_t != Exec.BoolT && cfact_t != Exec.NoType )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+		 if ( !isBool(cfact_t) )
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 						Exec.types[cfact_t]+"- expected type: boolean");
 		 int labelE;
 		 if ( lex.currToken() == Token.AND ) { 
@@ -1835,28 +2017,28 @@ public class Parser {
 			 Transl.modOperand(iJumpE, labelE);
 		 }
 		 else 
-			 if ( inFirst(follows_andExpr_next) ) {
+			 if ( inFirst(follows_andExp_next) ) {
 				 int iJ1 = Transl.ins(Operator.JUMP,0);
 				 labelE =  Transl.ins(Operator.PUSHB,0);
 				 Transl.ins(Operator.NEXT,0);
 				 Transl.modOperand(iJ1, labelE+1);
 			 }
 			 else
-				 throw raiseExc(follows_andExpr_next);
+				 throw raiseExc(follows_andExp_next);
 		 return labelE;
 	 }
 
 	//<eqExpr> -> <relExpr> { EQNEQ <relExpr> }
 	 static int eqExpr ( boolean se ) throws Exc {
-		 if ( inFirst(first_eqExpr) ) { 
+		 if ( inFirst(first_eqExp) ) { 
 			 int expr1_t = relExpr(se);
 			 while ( lex.currToken() == Token.EQNEQ ) {
 				 EQNEQOpType relOP =lex.EQNEQ_Op(); 
 				 String relOpDescr = lex.tokenFullDescr();
 				 lex.nextToken();
 				 int expr2_t = relExpr(se);
-				 if ( !areComparable(expr1_t, expr2_t,relOP) )
-					 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE,
+				 if ( !areEQNEQComparable(expr1_t, expr2_t) )
+					 throw new Exc_Synt(ErrorType.WRONG_TYPE,
 							 Exec.types[expr2_t]+"- it cannot be compared with "+ Exec.types[expr1_t]+
 							 " by operator "+relOpDescr);
 				 Transl.ins(relOP.relOp,0);
@@ -1865,342 +2047,282 @@ public class Parser {
 			return expr1_t;
 		 }
 		 else
-			 throw raiseExc(first_eqExpr);
+			 throw raiseExc(first_eqExp);
 	}
 	 
 		//<relExpr> -> <expr> { GTLT <expr> }
 	 static int relExpr ( boolean se ) throws Exc {
-		 if ( inFirst(first_eqExpr) ) { 
+		 if ( inFirst(first_eqExp) ) { 
 			 int expr1_t = expr(se);
 			 while ( lex.currToken() == Token.GTLT ) {
 					 GTLTOpType relOP =lex.GTLT_Op(); String relOpDescr = lex.tokenFullDescr();
 					 lex.nextToken();
-					 if ( !isComparable(expr1_t,relOP) )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, " operator "+relOpDescr+" for type '"+
-								Exec.types[expr1_t]+"'");
 					 int expr2_t = expr(se);
-					 if ( !isComparable(expr2_t,relOP) )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, " operator "+relOpDescr+" for type '"+
-									Exec.types[expr2_t]+"'");
-					 if ( !areComparable(expr1_t, expr2_t,relOP) )
-						 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE,
-								 Exec.types[expr2_t]+"- it cannot be compared with '"+ Exec.types[expr1_t]+
-								 "' by operator "+relOpDescr);
+					 if ( !areRelComparable(expr1_t, expr2_t) )
+						 throw new Exc_Synt(ErrorType.WRONG_TYPE,
+								 Exec.types[expr2_t]+"- it cannot be compared with '"+ 
+						         Exec.types[expr1_t]+ "' by operator "+relOpDescr);
 					 Transl.ins(relOP.relOp,0);
 					 expr1_t= Exec.BoolT;
 			 }
 			return expr1_t;
 		 }
 		 else
-			 throw raiseExc(first_eqExpr);
+			 throw raiseExc(first_eqExp);
 	}
 	 
-	//<expr> -> <term> { ( PLUS | MINUS ) <term> }
+	//<expr> -> <term> ( { ( PLUS | MINUS ) <term> } | { PLUSPLUS <term> } )
 	 static int expr ( boolean se ) throws Exc {
-		 if ( inFirst(first_expr) ) { 
-			 final int notype = 0;
-			 final int number = 1;
-			 final int string = 2;
-			 final int list = 3;
-			 int currType = notype;
-			 boolean cannotBeList = false;
+		 if ( inFirst(first_ifExp) ) { 
 			 boolean firstWhile = true;
 			 int term1_t = term(se);
-			 if ( currType== number && term1_t != Exec.NoType && !isNumber(term1_t) )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							Exec.types[term1_t]+"- expected type: double or long or int or char");
+			 if (lex.currToken() == Token.PLUSPLUS) 
+				 while ( lex.currToken() == Token.PLUSPLUS ) {
+					 if ( firstWhile ) {
+						 if ( !isStringList(term1_t) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[term1_t]+"- expected types: string or list");
+						 if ( term1_t==Exec.GenT || term1_t==Exec.GsljT )
+							 term1_t= Exec.GslT;
+						 firstWhile=false;
+					 	}
+					 lex.nextToken();
+					 int term2_t = term(se);
+					 if ( !isStringList(term2_t) ) 
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[term2_t]+"- expected types: string or list");
+					 switch ( term1_t ) {
+					 	case Exec.ListT: 
+							 if ( term2_t == Exec.StringT )
+									throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											Exec.types[term2_t]+"- expected type: list");					 
+					 		 break;
+					 	case Exec.StringT: 
+							 if ( term2_t == Exec.ListT )
+									throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											Exec.types[term2_t]+"- expected type: string");					 
+					 		 break;
+					 	case Exec.GslT: 
+							 if ( term2_t==Exec.StringT  ) 
+								 term1_t = Exec.StringT;
+							 else
+								 if ( term2_t==Exec.ListT  ) 
+									 term1_t = Exec.ListT;
+					 }
+					 Transl.ins(Operator.ADDLS,0);
+				 }
+				 
+			else 
 			 while ( lex.currToken() == Token.PLUS ||  lex.currToken() == Token.MINUS  ) {
-				 boolean isMINUS = lex.currToken() == Token.MINUS;
 				 if ( firstWhile ) {
-					 if ( !isNumber(term1_t) && term1_t != Exec.ListT && term1_t != Exec.StringT && term1_t != Exec.NoType)
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[term1_t]+"- expected types: double or long or int or char or string or list");
-					 if ( isNumber(term1_t) )
-						 currType = number; 
-					 else
-						 if ( term1_t==Exec.StringT  )
-							 currType = string; 	
-						 else
-							 if ( term1_t==Exec.ListT  )
-								 currType = list; 								 
+					 if ( !isNumber(term1_t) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[term1_t]+"- expected types: double or long or int or char");
+					 term1_t=term1_t==Exec.GenT? Exec.GnumT: term1_t;
 					 firstWhile=false;
 				 }
-				 if ( isMINUS ) {
-					 if ( currType==list )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									"operator '-' is not supported for list");
-					 else
-						 if ( currType==string )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										"operator '-' is not supported for string");
-					 currType = number;
-				 }
+				 boolean isMINUS = lex.currToken() == Token.MINUS;
 				 lex.nextToken();
 				 int term2_t = term(se);
-				 switch ( currType ) {
-				 	case number: 
-						 if ( term2_t != Exec.NoType && !isNumber(term2_t) )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[term2_t]+"- expected type: double or long or int or char");
-						 term1_t = mostGenericNumber(term1_t,term2_t);
-				 		 break;
-				 	case list: 
-						 if ( term2_t != Exec.NoType && term2_t != Exec.ListT )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[term2_t]+"- expected type: list");					 
-				 		 break;
-				 	case string: 
-						 if ( term2_t != Exec.NoType && term2_t != Exec.StringT && term2_t != Exec.CharT )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[term2_t]+"- expected type: string or char");					 
-				 		 break;
-				 	case notype:
-				 		if ( cannotBeList && term2_t == Exec.ListT )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[term2_t]+"- expected type: double or long or int or char or string");
-						 if ( term2_t==Exec.DoubleT ||  term2_t==Exec.IntT ) {
-							 currType = number; term1_t = term2_t;
-						 }
-						 else
-							 if ( term2_t==Exec.StringT  ) {
-								 currType = string; term1_t = term2_t;
-							 }
-							 else
-								 if ( term2_t==Exec.ListT  ) {
-									 currType = list; term1_t = term2_t;
-								 }
-								 else
-									 if (term2_t == Exec.CharT ) 
-										 cannotBeList=true;
-									 else
-										 if ( term2_t != Exec.NoType )
-											throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-													Exec.types[term2_t]+"- expected types: double or long or int or char or string or list");										 
-				 }
+				 if ( !isNumber(term2_t) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[term2_t]+"- expected type: double or long or int or char");
+				 term2_t=term2_t==Exec.GenT? Exec.GnumT: term2_t;
+				 term1_t = mostGeneralNumberType(term1_t,term2_t);
 				 if ( isMINUS )
 					 Transl.ins(Operator.SUB,0);
 				 else
 					 Transl.ins(Operator.ADD,0);
 			 }
-			 return term1_t;
+			return term1_t;
 		 }
 		 else
-			 throw raiseExc(first_expr);
+			 throw raiseExc(first_ifExp);
 	}
 	 
-	//<term(se)> -> <uniTerm(se)> [ ( STAR | DIV | DIVTR | REMINDER) <uniTerm(se)> ]*
+	//<term(se)> -> <uniTerm(se)> { ( STAR | DIV | DIVTR | REMINDER) <uniTerm(se)> }
 	 static int term (  boolean se ) throws Exc {
 		 if ( inFirst(first_term) ) { 
-			 int unTerm1_t = uniTerm(se);
+			 int uniTerm1_t = uniTerm(se);
 			 boolean firstWhile = true;
 			 while ( lex.currToken() == Token.STAR ||  lex.currToken() == Token.DIV  
 					 			||  lex.currToken() == Token.DIVTR ||  lex.currToken() == Token.REMAINDER) {
 				 if ( firstWhile  ) {
-					 if ( unTerm1_t!=Exec.NoType && !isNumber(unTerm1_t) )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[unTerm1_t]+"- expected type: double or long or int or char");
+					 if ( uniTerm1_t!=Exec.GenT && !isNumber(uniTerm1_t) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[uniTerm1_t]+"- expected type: double or long or int or char");
+					 uniTerm1_t=uniTerm1_t==Exec.GenT? Exec.GnumT: uniTerm1_t;
 				 }
 				 else
 					 firstWhile=false;
 				 int opType = lex.currToken() == Token.STAR ? 1: lex.currToken() == Token.REMAINDER ? 2: 
 					 lex.currToken() == Token.DIV ? 3 : 4;	 
 				 lex.nextToken();
-				 int unTerm2_t = uniTerm(se);
-				 if ( unTerm2_t!=Exec.NoType && !isNumber(unTerm2_t) )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[unTerm2_t]+"- expected type: double or long or int or char");
-				 if ( opType == 1 ) {
-					 Transl.ins(Operator.MULT,0);
-					 unTerm1_t=mostGenericNumber(unTerm1_t,unTerm2_t);
-				 }
-				 else
-					 if ( opType == 2 ) {
-						 Transl.ins(Operator.REMAIN,0);
-						 unTerm1_t=mostGenericNumber(unTerm1_t,unTerm2_t);
-					 }
-				 else {
+				 int uniTerm2_t = uniTerm(se);
+				 if ( uniTerm2_t!=Exec.GenT && !isNumber(uniTerm2_t) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[uniTerm2_t]+"- expected type: double or long or int or char");
+				 uniTerm2_t=uniTerm2_t==Exec.GenT? Exec.GnumT: uniTerm2_t;				 
+				 switch (opType) {
+					 case(1): 
+						 Transl.ins(Operator.MULT,0);
+						 uniTerm1_t=mostGeneralNumberType(uniTerm1_t,uniTerm2_t);
+						 break;
+					 case(2): 
+						 Transl.ins(Operator.REMAINDER,0);
+						 uniTerm1_t=mostGeneralNumberType(uniTerm1_t,uniTerm2_t);
+						 break;
+					 case(3):case(4): 
 						 Transl.ins(Operator.DIV,0);
-						 unTerm1_t=Exec.DoubleT;
+						 uniTerm1_t=Exec.DoubleT;
 						 if ( opType == 4 ) { // operator '//'
-							 Transl.ins(Operator.TOINTL,0);
-							 unTerm1_t=Exec.IntT;
-						 }
+							 Transl.ins(Operator.TOINT,0);
+							 uniTerm1_t=Exec.IntT;
+						 }				 
 				 }
 			 }
-			 return unTerm1_t;
+			 return uniTerm1_t;
 		 }
 		 else
 			 throw raiseExc(first_term);
 	}
 
-		//<uniTerm> -> { PLUS | MINUS | NOT } <simpleTerm> 
+		//<uniTerm> -> ( { PLUS | MINUS } | { NOT } ) <simpTerm> 
 	 static int uniTerm ( boolean se ) throws Exc {
 		 boolean isMINUS = false;
-		 boolean isNumber = false;
-		 boolean isBool = false; 
+		 boolean mustBeNumber = false;
+		 boolean mustBeBool = false; 
 		 boolean isNOT = false;
 		 while ( lex.currToken() == Token.PLUS || lex.currToken() == Token.MINUS
 				 || lex.currToken() == Token.EMARK ) {
-			 if ( lex.currToken() == Token.EMARK && isNumber )
-					throw new Exc_Synt(ErrorType.NOT_NOT_SUPPORTED, 
+			 if ( lex.currToken() == Token.EMARK && mustBeNumber )
+					throw new Exc_Synt(ErrorType.WRONG_UN_OP, 
 							" after operator '+' or '-'");
 			 if ( (lex.currToken() == Token.PLUS || lex.currToken() == Token.MINUS) 
-					 && isBool )
-					throw new Exc_Synt(ErrorType.PLUS_MINUS_NOT_SUPPORTED, 
+					 && mustBeBool )
+					throw new Exc_Synt(ErrorType.WRONG_UN_OP, 
 							" after operator '!'");
 			 if ( lex.currToken() == Token.PLUS || lex.currToken() == Token.MINUS ) {
-				 isNumber = true;
+				 mustBeNumber = true;
 				 if ( lex.currToken() == Token.MINUS )
 					 isMINUS = !isMINUS; 
 				 lex.nextToken(); 
 			 }
 			 else
 				 if ( lex.currToken() == Token.EMARK ) {
-					 isBool=true;
+					 mustBeBool=true;
 					 isNOT = !isNOT;
 					 lex.nextToken();
 				 }
 		 }
- 		 int currT = simpleTerm(se);
-		 if ( isNumber && currT != Exec.NoType && !isNumber(currT) )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-						Exec.types[currT]+"- expected type: double or long or int or char");
-		 if ( isMINUS )
-			 Transl.ins(Operator.NEG,0);
-		 if ( isBool ) {
-			 if ( currT != Exec.BoolT && currT != Exec.NoType )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+ 		 int currT = simpTerm(se);
+		 if ( mustBeNumber ) {
+			 if ( currT != Exec.GenT && !isNumber(currT) )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[currT]+"- expected type: double or long or int or char");
+			 if ( isMINUS ) // dynamic type check performed by Operator.NEG
+				 Transl.ins(Operator.NEG,0);
+			 else
+				 if ( currT == Exec.GenT ) // forced dynamic type check
+					 Transl.ins(Operator.CHECKN,0);
+			 currT=currT==Exec.GenT? Exec.GnumT: currT;
+		 }
+		 if ( mustBeBool ) {
+			 if ( currT != Exec.BoolT && currT != Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[currT]+"- expected type: boolean");
 			 if ( isNOT )
 				 Transl.ins(Operator.NOT, 0);
+			 else
+				 if ( currT == Exec.GenT ) // dynamic type check
+					 Transl.ins(Operator.CHECKB,0);
+			 currT=Exec.BoolT;
 		 }	
 		 return currT;
 	 }
 
-	//<simpleTerm> -> <fact> { OSPAR <listStringJsonElems> CSPAR | CAST TYPEC } 
-	 static int simpleTerm ( boolean se ) throws Exc {
+	//<simpTerm> -> <fact> { OPAR <actPars> CPAR }_2 { OSPAR <sliceElems> CSPAR | CAST TYPEC } 
+	 static int simpTerm ( boolean se ) throws Exc {
 	 	 if ( inFirst(first_simpleTerm) ) { 
 	 		 int currT = fact(se); 
+	 		 int i=2;
 	 		 while ( lex.currToken()== Token.OPAR ) {
+	 			 if ( i< 1 )
+						throw new Exc_Synt(ErrorType.WRONG_CALL, 
+								"- the second nested function call cannot return a function");
+	 			 if ( !isFunction(currT) ) 
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[currT]+"- expected type: function");
 	 			 lex.nextToken();
-	 			 currT= call(se);
+	 			 currT= actPars(se);
 	 			 lex.accept(Token.CPAR);
+	 			 i--;
 	 		 }
 	 		 while ( lex.currToken() == Token.OSPAR  || lex.currToken() == Token.CAST ) {
 	 			 if ( lex.currToken() == Token.OSPAR ) {
-		 			 if ( currT !=Exec.NoType && currT != Exec.ListT && 
-		 					 currT != Exec.StringT && currT != Exec.JsonT)
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[currT]+"- expected types: list or string or json");
 					 lex.nextToken();
-					 cannotBeJson=false;
-					 currT =listStringJsonElems(se,currT);
+//					 cannotBeJson=false;
+					 currT =sliceElems(se,currT);
 					 lex.accept(Token.CSPAR );
 				 }
 	 			 else {
 						 lex.nextToken();
 						 if ( lex.currToken() == Token.TYPE ) {
 							 int castT = lex.currType();
+							 Transl.ins(Operator.CAST,castT);
 							 switch(castT) {
-							 case Exec.DoubleT:
-								 if ( currT==Exec.NoType || currT==Exec.IntT || currT==Exec.LongT || currT==Exec.CharT  ) {
-									 	Transl.ins(Operator.TODOUBLE,0);
-									 	currT = Exec.DoubleT;
+							 case Exec.DoubleT: case Exec.LongT: case Exec.CharT:
+								 if ( currT==Exec.GenT || isNumber(currT)  ) {
+									 	currT = castT;
 								 }
 								 else 
-									 if ( currT==Exec.DoubleT )
-										 currT=Exec.DoubleT;
-									 else
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											 Exec.types[currT]+"- expected types: int or long or double or char");
+									 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										 Exec.types[currT]+" cannot be casted to "+Exec.types[castT]+" - expected types: int or long or double or char");
 								 break;
-							 case Exec.LongT:
-								 if ( currT==Exec.NoType || currT==Exec.IntT || currT==Exec.DoubleT ||
-								 	currT==Exec.CharT  ) {
-									 	Transl.ins(Operator.TOLONG,0);
-									 	currT = Exec.LongT;
+							 case Exec.IntT: 
+								 if ( currT==Exec.GenT || isNumber(currT) || currT==Exec.BoolT  ) {
+									 	currT = castT;
 								 }
 								 else 
-									 if ( currT==Exec.LongT )
-										 currT=Exec.LongT;
-									 else
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											 Exec.types[currT]+"- expected types: int or long or double or char");
-								 break;
-							 case Exec.IntT:
-								 if ( currT==Exec.NoType || currT==Exec.LongT || currT==Exec.DoubleT ||
-								 	currT==Exec.CharT || currT==Exec.BoolT ) {
-									 	Transl.ins(Operator.TOINT,0);
-									 	currT = Exec.IntT;
-								 }
-								 else 
-									 if ( currT==Exec.IntT )
-										 currT=Exec.IntT;
-									 else
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											 Exec.types[currT]+"- expected types: int or long or double or char or bool");
-								 break;
-							 case Exec.CharT:
-								 if ( currT==Exec.NoType || currT==Exec.IntT || currT==Exec.DoubleT ||
-								 				currT==Exec.LongT ) {
-									 Transl.ins(Operator.TOCHAR,0);
-									 currT = Exec.CharT;
-								 }
-								 else 
-									 if ( currT==Exec.CharT )
-										 currT=Exec.CharT;
-									 else
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											 Exec.types[currT]+"- expected types: int or long or double or char");
+									 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										 Exec.types[currT]+" cannot be casted to int - expected types: int or long or double or char or bool");
 								 break;
 							 case Exec.StringT:
-								 if ( currT==Exec.NoType || currT==Exec.ListT  ||
+								 if ( currT==Exec.GenT || isStringList(currT)  ||
 								 		currT==Exec.CharT ) {
-									 Transl.ins(Operator.TOSTRING,0);
 									 currT = Exec.StringT;
 								 }
 								 else
-									 if ( currT==Exec.StringT )
-										 currT = Exec.StringT;
-									 else 
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-												 Exec.types[currT]+"- expected types: char or list of chars or string");
+									 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											 Exec.types[currT]+" cannot be casted to string - expected types: char or list of chars or string");
 								 break;
 							 case Exec.ListT:
-								 if ( currT==Exec.NoType || currT==Exec.StringT || currT==Exec.JsonT ) {
-									 Transl.ins(Operator.TOLIST,0);
+								 if ( currT==Exec.GenT || isStringList(currT) || currT==Exec.JsonT ) {
 									 currT = Exec.ListT;										 
 								 }
 								 else
-									 if ( currT==Exec.ListT )
-										 currT = Exec.ListT;
-									 else 
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-												Exec.types[currT]+"- expected types: string or json or list");											 
-								 break;
+									 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											Exec.types[currT]+" cannot be casted to list - expected types: string or json or list");											 
+							 break;
 							 case Exec.JsonT:
-								 if ( currT==Exec.NoType || currT==Exec.ListT ) {
-									 Transl.ins(Operator.TOJSON,0);
+								 if ( currT==Exec.GenT || currT==Exec.ListT || currT==Exec.GslT ||
+										 currT==Exec.JsonT ) {
 									 currT = Exec.JsonT;										 
 								 }
 								 else
-									 if ( currT==Exec.JsonT )
-										 currT = Exec.JsonT;
-									 else 
-										 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-												Exec.types[currT]+"- expected types: list or json");											 
+									 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											Exec.types[currT]+" cannot be casted to json - expected types: list or json");											 
 								break;
 							 case Exec.TypeT:
-								 if ( currT != Exec.MetaTypeT ) {
-									 Transl.ins(Operator.TOTYPE,0);
+								 if ( currT != Exec.FuncT && currT != Exec.LabT) {
 									 currT = Exec.TypeT;
 								 }
 								 else 
-										throw new Exc_Synt(ErrorType.TOTYPE_NOT_SUPPORTED,
-												" for metatype 'type'");
+										throw new Exc_Synt(ErrorType.WRONG_TYPE,
+												Exec.types[currT]+" cannot be casted to 'type' ");
 								 break;
-							default:
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+							default: // it should never happen
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 										"- cast to "+Exec.types[castT]+" not supported");
 							 }
 												 
@@ -2227,75 +2349,99 @@ public class Parser {
 		 Transl.ins(Operator.ESTRING,0);
 	 }
 
-		//<fact> -> 	 ( IDL | ID ) | UNDERSCORE <factBuiltIn> | OSPAR [ <constListElems> ] CSPAR  |  
-		//               OBRACE [ <fields> ] CBRACE | <lambda> | OPAR  <ifExpr(se)>  CPAR | 
-		// 				 INT | LONG | DOUBLE | CHAR | STRING | NULL | TRUE | FALSE | TYPE
+		//<fact> -> 	 ( IDL | ID ) | <callBuiltIn> | OSPAR [ <constListElems> ] CSPAR  |  
+		//               OBRACE [ <jsonFields> ] CBRACE | <lambda> | OPAR  <ifExpr(se)>  CPAR | 
+		// 				 INT | LONG | DOUBLE | CHAR | STRING | NULL | BOOL | TYPE
 		 static int fact (  boolean se ) throws Exc {
+			 // case ( IDL | ID )
 			 if ( lex.currToken() == Token.ID || lex.currToken() == Token.IDL ) {
 				 String idName = lex.IDName();
+				 if ( SymbH.isLabel(idName) && !SymbH.is_FunctDef()&&!SymbH.isLambdaDef()) {
+			 		 Transl.ins(Operator.PUSHLAB,SymbH.indLab(idName));	
+					 lex.nextToken();
+					 return Exec.LabT;
+				 }
 				 boolean hasLabel= lex.currToken()==Token.IDL;
 				 String label =   hasLabel? lex.currLabel(): null;
-				 int idType = SymbH.setCurrID(idName,hasLabel,label,setLabel,setLabelID);
+				 if ( hasLabel && !SymbH.isLabel(label) )
+						throw new Exc_Sem(ErrorType.UNDEF_LABEL, ": "+label);
+				 int idType = SymbH.setCurrID(idName,se,hasLabel,label,setLabel,setLabelID);
 				 if ( idType == SymbH.undefID )
-						throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
-//				 int retTypeF=SymbH.currFunctRetType();
-				 int retArityF=SymbH.currFunctRetArity();
+					 throw new Exc_Synt(ErrorType.UNDEF_ID, " " + idName);
+				 if ( SymbH.isIdNameLabeled()) 
+					 History.replaceLast(idName, SymbH.idNameLabeled());
 				 lex.nextToken();
-				 
-				 if ( lex.currToken() == Token.OPAR ) {
-					 if ( idType != SymbH.functType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									"found a variable - expected a function");
-					 if ( SymbH.isParam() ) {
-						 int iPar = SymbH.iCurrVarFunc();
-						 int nPar = SymbH.currFunctParam_NP(); // for lambda, its parameters only
-						 int nParTot = SymbH.nParCurrFunDef();
-						 currFunctCalled=new FunctCalled(idName,FunctCalled.isParameter,iPar,nPar,nParTot);
+
+				 if ( idType == SymbH.functType ) {
+					 if ( SymbH.isParam() ) { // case of function parameter in a current function definition
+						 int iPar = SymbH.iCurrVarFunc(); 
+						 int nPar = SymbH.currFunctParam_NP(); 
+						 int nParDefFunc = SymbH.nParCurrFunDef(); 
+						if (!SymbH.isLambdaDef()) {
+						 	Transl.ins(Operator.LOADPAR,nParDefFunc-iPar); 
+						 	Transl.ins(Operator.DEREF,0);
+						}
+						else {
+							 Transl.ins(Operator.LOADXPAR,iPar+1);
+							 Transl.ins(Operator.DEREFX,0);						 							 							 							
+						}
+					 	currFunctCalled=new FunctCalled(idName,SymbH.isCurrFactIdSE(),iPar,nPar,0);
+					 }
+					 else { // case of function identifier 
+						 int i = SymbH.iCurrVarFunc(); // function index
+						 int j = SymbH.iCurrVarFuncTot(); // symbol index - j=-1 if it is the currently defined function that is recursively called
+						 FunctInfo fi = SymbH.finfo(j); // function info
+						 Transl.ins(Operator.PUSHF,i, "*-> "+idName);							 
+						 currFunctCalled=new FunctCalled(idName,i,fi);	
+					 }
+					 return Exec.FuncT;
+				 }
+
+				 if (SymbH.isParam() ) { // case of variable parameter in a function definition
+					 int iPar = SymbH.iCurrVarFunc(); // index of the parameter 
+					 int nParTot = SymbH.nParCurrFunDef(); // for lambda definition, also includes external parameters
+					 if (!SymbH.isLambdaDef()) {
+						 Transl.ins(Operator.LOADPAR,nParTot-iPar);
+						 Transl.ins(Operator.DEREF,0);						 
 					 }
 					 else {
-						 int i = SymbH.iCurrVarFunc();
-						 int j = SymbH.iCurrVarFuncTot();
-						 FunctInfo fi = SymbH.finfo(j);
-						 currFunctCalled=new FunctCalled(idName,FunctCalled.isIdentifier,i,fi);
+						 int nParFunc=SymbH.numFuncParLambda();
+						 if ( iPar>= nParFunc) { // proper lambda parameter
+							 Transl.ins(Operator.LOADPAR,nParTot-iPar);
+							 Transl.ins(Operator.DEREF,0);						 							 
+						 }
+						 else { // parameter of the function hosting the lambda definition
+//***						 Transl.ins(Operator.LOADXPAR,nParFunc-iPar-1);
+							 Transl.ins(Operator.LOADXPAR,iPar+1);
+							 Transl.ins(Operator.DEREFX,0);						 							 							 
+						 }
 					 }
-					 return Exec.FuncT+retArityF; /* funct/0, functT/1, etc */
+					 return Exec.GenT;
 				 }
-				 if ( !SymbH.isParam() && idType == SymbH.functType ) { 
-					 // case of an external function passed as a argument of a function				 
-					 int i =SymbH.iCurrVarFuncTot();
-					 currFunctCalled=new FunctCalled(idName,FunctCalled.isRetFunct,SymbH.iCurrVarFunc(),SymbH.finfo(i));
-					 Transl.ins(Operator.PUSHF,SymbH.iCurrVarFunc(), "*-> "+idName);
-					 return Exec.FuncT+SymbH.currFunctParam_NP();
-				 }
-				 if (SymbH.isParam() ) {
-					 int iPar = SymbH.iCurrVarFunc();
-					 int nPar = SymbH.nParCurrFunDef(); // for lambda, includes hosting function parameters
-					 Transl.ins(Operator.LOADARG,nPar-iPar);
-					 Transl.ins(Operator.DEREF,0);
-					 if ( idType == SymbH.functType ) {
-						 int nPar1 = SymbH.currFunctParam_NP(); // for lambda, its parameters only
-						 currFunctCalled=new FunctCalled(idName,FunctCalled.isParameter,iPar,nPar1,nPar1);
-						 return Exec.FuncT+nPar1;
-					 }
-					 else
-						 return Exec.NoType;
-				 }
-				 int retType=Exec.NoType;
-				 if ( SymbH.isLocVar() ) 
+				 
+				 // case of variable identifier
+				 int retType;
+				 if ( SymbH.isLocVar() ) { // local variable
+					 retType=Exec.GenT;
 					 Transl.ins(Operator.LOADLV,SymbH.iCurrVarFunc());
+				 }
 				 else { // global variable
-					 if ( typeDef == isVarDef || typeDef == isComp  ) 
-						 if ( !hasLabel )
-							 retType = SymbH.typeGV(SymbH.iCurrVarFunc());
+					 if ( typeDef == isVarDef || typeDef == isQuery  ) 
+						 // the variable type is known
+						 retType = SymbH.typeGV(SymbH.iCurrVarFunc());
+					 else
+						 retType=Exec.GenT;
 					 Transl.ins(Operator.LOADGV,SymbH.iCurrVarFunc());
 				 }
 				 Transl.ins(Operator.DEREF,0);
 				 return retType; 
 			 }
-			 if ( lex.currToken() == Token.UNDERSCORE ) { 
-				 lex.nextToken();
-				 return factBuiltIn(se);
-			 }
+			 
+			 // case <callBuiltIn>
+			 if ( lex.currToken() == Token.BIFUNC )  
+				 return callBuiltIn(se);
+			 
+			 // case OSPAR [ <constListElems> ] CSPAR
 			 if ( lex.currToken() == Token.OSPAR ) {
 					 Transl.ins(Operator.SLIST,0);
 					 lex.nextToken();
@@ -2309,44 +2455,61 @@ public class Parser {
 					 lex.accept(Token.CSPAR );
 					 return Exec.ListT;
 			 }
+			 
+			 // case OBRACE [ <fields> ] CBRACE
 			 if ( lex.currToken() == Token.OBRACE ) {
 				 Transl.ins(Operator.SJSON,0);
 				 lex.nextToken();
 				 if ( lex.currToken() != Token.CBRACE  ) 
-					 fields(se);
+					 jsonFields(se);
 				 Transl.ins(Operator.EJSON,0);
 				 lex.accept(Token.CBRACE );
 				 return Exec.JsonT;
 			 }
-			 if ( lex.currToken() == Token.LAMBDA ) 
-				  return lambda(); 		 
 			 
+			 // case <lambda> 
+			 if ( lex.currToken() == Token.LAMBDA ) {
+				  lambda(); 
+				  return Exec.FuncT;
+			 }
+			 
+			 // case OPAR  <ifExpr(se)>  CPAR
 			 if ( lex.currToken() == Token.OPAR ) {
 				 lex.nextToken();
-				 int retType = ifExpr(se);
+				 int retType = ifExp(se);
 				 lex.accept(Token.CPAR);
 				 return retType;
 			 }				 
+			 
+			 // case DOUBLE
 			 if ( lex.currToken() == Token.DOUBLE ) {
 					 Transl.ins(Operator.PUSHD,lex.doubleVal());
 					 lex.nextToken();
 					 return Exec.DoubleT;
 			 }
+			 
+			 // case INT
 			 if ( lex.currToken() == Token.INT ) {
 				 Transl.ins(Operator.PUSHI,lex.intVal());
 				 lex.nextToken();
 				 return Exec.IntT;
 			 }
+			 
+			 // case LONG
 			 if ( lex.currToken() == Token.LONG ) {
 				 Transl.ins(Operator.PUSHL,Double.longBitsToDouble(lex.longVal()));
 				 lex.nextToken();
 				 return Exec.LongT;
 			 }
+			 
+			 // case CHAR
 			 if ( lex.currToken() == Token.CHAR ) {
 					 Transl.ins(Operator.PUSHC,lex.CHARvalue());
 					 lex.nextToken();
 					 return Exec.CharT;
 			 }
+			 
+			 // case STRING
 			 if ( lex.currToken() == Token.STRING ) {
 					 getString(lex.stringVal());
 					 if ( lex.isStringOverflow() )
@@ -2354,46 +2517,48 @@ public class Parser {
 					 lex.nextToken();
 					 return Exec.StringT;
 			 }
+			 
+			 // case NULL
 			 if ( lex.currToken() == Token.NULL ) {
 				 Transl.ins(Operator.PUSHN,0);
 				 lex.nextToken();
 				 return Exec.NullT;
 			 }
-			 if ( lex.currToken() == Token.TRUE ) {
+			 
+			 // case BOOL (true or false)
+			 if ( lex.currToken() == Token.BOOL ) {
+				 if( lex.valBool() )
 					 Transl.ins(Operator.PUSHB,1);
-					 lex.nextToken();
-					 return Exec.BoolT;
-			 }
-			 if ( lex.currToken() == Token.FALSE ) {
+				 else
 					 Transl.ins(Operator.PUSHB,0);
 					 lex.nextToken();
 					 return Exec.BoolT;
-		 	 }
+			 }
+			 
+			 // case TYPE
 			 if ( lex.currToken() == Token.TYPE ) {
-				 if ( lex.currType() == Exec.TypeT ) {
-					 Transl.ins(Operator.PUSHMT,0);
-					 lex.nextToken();
-					 return Exec.MetaTypeT;				 
-				 }
-				 else { 
 					 Transl.ins(Operator.PUSHT,lex.currType());
 					 lex.nextToken();
 					 return Exec.TypeT;
-				 }
 			 }
+			 
+			 // ERROR: none of the above cases
 			throw raiseExc(first_fact); 
 		}
 		 
-	 // <fields> -> <ifExpr> COLON <ifExpr> { COMMA <ifExpr> COLON <ifExpr> }
-	 static void fields(boolean se) throws Exc {
+	 // <jsonFields> -> <ifExpr> COLON <ifExpr> { COMMA <ifExpr> COLON <ifExpr> }
+	 static void jsonFields(boolean se) throws Exc {
 			if ( inFirst(first_fields) ) { 
-				int type = ifExpr(se);
-				if ( type != Exec.NoType && type != Exec.StringT )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				int type = ifExp(se);
+				if ( type != Exec.GenT && type != Exec.StringT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[type]+"- expected type: string");
 				lex.printH_Colon(true); // print spaced COLON on history
 				lex.accept(Token.COLON);
-				ifExpr(se);
+				int ifExpr_t=ifExp(se);
+				if ( ifExpr_t == Exec.LabT || ifExpr_t == Exec.FuncT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, "a field of type "+
+							Exec.types[ifExpr_t]+" cannot occur in a json");
 				Transl.ins(Operator.NEWFLD,0);
 				Transl.ins(Operator.CJSON,0);
 				while ( lex.currToken() == Token.COMMA || lex.currToken() != Token.CBRACE ) {
@@ -2401,13 +2566,16 @@ public class Parser {
 						lex.printH_Comma(true); // print space after comma in history
 						lex.nextToken();
 					}
-					type = ifExpr(se);
-					if ( type != Exec.NoType && type != Exec.StringT )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+					type = ifExp(se);
+					if ( type != Exec.GenT && type != Exec.StringT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[type]+"- expected type: string");
 					lex.printH_Colon(true); // print spaced COLON on history
 					lex.accept(Token.COLON);
-					ifExpr(se);
+					ifExpr_t=ifExp(se);
+					if ( ifExpr_t == Exec.LabT || ifExpr_t == Exec.FuncT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, "a field of type "+
+								Exec.types[ifExpr_t]+" cannot occur in a json");
 					Transl.ins(Operator.NEWFLD,0);
 					Transl.ins(Operator.CJSON,0);
 				}
@@ -2418,148 +2586,116 @@ public class Parser {
 	 }
 	 
 
-	    //<factBuiltIn> -> ( ID(EXP | LOG | LEN | TUPLE) OPAR <ifExpr> CPAR | ID(RAND) OPAR CPAR |
-		//               ID(POW | ISKEY) OPAR <ifExpr>  COMMA <ifExpr> CPAR | 
-		//				 ID(IND) OPAR <ifExpr>  COMMA <ifExpr> [COMMA <ifExpr>] CPAR |
-	 	//				 ID(GDATE) OPAR [ <ifExpr> ] CPAR
-	 	//				 ID(PDATE) OPAR <ifExpr> [ COMMA <ifExpr> ] CPAR
-	 static int factBuiltIn ( boolean se ) throws Exc{
-		 if ( lex.currToken() != Token.ID )
-				throw new Exc_Synt(ErrorType.WRONG_TOKEN, lex.tokenFullDescr()+
-						"- expected token: 'ID'");						 
-		 BIFType builtinF = lex.getBuiltIn();
-		 int operand=0;
+	    //<callBuiltIn> -> ( _ID(EXP | LOG | LEN | TUPLE) OPAR <ifExpr> CPAR | ID(RAND) OPAR CPAR |
+		//               _ID(POW | ISKEY) OPAR <ifExpr>  COMMA <ifExpr> CPAR | 
+		//				 _ID(IND) OPAR <ifExpr>  COMMA <ifExpr> [COMMA <ifExpr>] CPAR |
+	 	//				 _ID(GDATE) OPAR [ <ifExpr> COMMA <ifExpr> ] CPAR
+	 	//				 _ID(PDATE) OPAR <ifExpr> [ COMMA <ifExpr> ] CPAR
+	 static int callBuiltIn ( boolean se ) throws Exc{
+//		 if ( lex.currToken() != Token.ID )
+//				throw new Exc_Synt(ErrorType.WRONG_TOKEN, lex.tokenFullDescr()+
+//						"- expected: 'exp' or 'log' or 'pow' or 'len' or 'rand' or 'ind' or 'tuple' or 'isKey' or 'pDate' or 'gDate'");						 
+		 BIFType builtinF = lex.BIF_type();
+		 int operand=0; int ifExp_t; int retType=-1;
 		 lex.nextToken();
 		 lex.accept(Token.OPAR);
-		 if ( builtinF != BIFType.RAND && builtinF != BIFType.GDATE 
-				 && builtinF != BIFType.PDATE ) { 
-			 int ifExpr_t = ifExpr(se);
-			 if ( builtinF == BIFType.IND ) {
-				 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[ifExpr_t]+"- expected type: string");
+		 switch(builtinF) {
+		 case RAND: retType=Exec.DoubleT; break;
+		 case POW: case LOG: case EXP: ifExp_t= ifExp(se); 
+ 			 if ( !isNumber(ifExp_t) && ifExp_t!=Exec.GenT )
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+						Exec.types[ifExp_t]+"- expected type: double or long or int or char");
+ 			 if (builtinF==BIFType.POW) {
+ 				 lex.printH_Comma(false); // no space after comma in history
+				 lex.accept(Token.COMMA); ifExp_t= ifExp(se);
+				 if ( !isNumber(ifExp_t) && ifExp_t!=Exec.GenT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExp_t]+"- expected type: double or long or int or char"); 				 
+ 			 }
+ 			retType=Exec.DoubleT; break;
+		 case LEN: ifExp_t= ifExp(se);
+			 if ( ifExp_t!=Exec.ListT && ifExp_t!=Exec.StringT && ifExp_t!=Exec.JsonT && ifExp_t!=Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExp_t]+"- expected type: string or list or json");
+	 			retType=Exec.IntT; break;
+		 case TUPLE: ifExp_t= ifExp(se);  
+			 if ( ifExp_t!=Exec.JsonT && ifExp_t!=Exec.GenT && ifExp_t!=Exec.LongT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExp_t]+"- expected type: json or long");						 
+	 			retType=Exec.ListT; break;
+		 case ISKEY: ifExp_t= ifExp(se);
+			 if ( ifExp_t!=Exec.JsonT && ifExp_t!=Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExp_t]+"- expected type: json");
+			 lex.printH_Comma(false); // no space after comma in history
+			 lex.accept(Token.COMMA);
+			 ifExp_t = ifExp(se);
+			 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExp_t]+"- expected type: string");
+	 			retType=Exec.BoolT; break;
+		 case IND: ifExp_t= ifExp(se);  
+			 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExp_t]+"- expected type: string");
+			 lex.printH_Comma(false); // no space after comma in history
+			 lex.accept(Token.COMMA);
+			 ifExp_t = ifExp(se);
+			 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExp_t]+"- expected type: string");
+			 if (lex.currToken()==Token.COMMA ) {
+				 lex.printH_Comma(false); // no space after comma in history
+				 lex.nextToken();
+				 ifExp_t = ifExp(se);
+				 if ( !isIntegerOrChar(ifExp_t) && ifExp_t!=Exec.GenT )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[ifExp_t]+"- expected type: int or char");						 
+			 }
+			 else 
+				 Transl.ins(Operator.PUSHI,0);			 
+	 		retType=Exec.IntT; break;
+		 case GDATE:
+			 if ( lex.currToken()!=Token.CPAR ) {
+				 ifExp_t = ifExp(se);
+				 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+									Exec.types[ifExp_t]+"- expected type: string");
  				 lex.printH_Comma(false); // no space after comma in history
 				 lex.accept(Token.COMMA);
-				 ifExpr_t = ifExpr(se);
-				 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[ifExpr_t]+"- expected type: string");
-				 if (lex.currToken()==Token.COMMA ) {
-	 				 lex.printH_Comma(false); // no space after comma in history
-					 lex.nextToken();
-					 ifExpr_t = ifExpr(se);
-					 if ( !isInteger(ifExpr_t) && ifExpr_t!=Exec.NoType )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[ifExpr_t]+"- expected type: int or char");						 
-				 }
-				 else 
-					 Transl.ins(Operator.PUSHI,0);			 
+				 ifExp_t = ifExp(se);
+				 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExp_t]+"- expected type: string");
+				 operand=1;
+			 }			 						 
+	 		retType=Exec.LongT; break;
+		 case PDATE: ifExp_t= ifExp(se);
+			 if ( ifExp_t!=Exec.LongT && ifExp_t!=Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+							Exec.types[ifExp_t]+"- expected type: long");
+			 if ( lex.currToken()!=Token.CPAR ) {
+				 lex.printH_Comma(false); // no space after comma in history
+				 lex.accept(Token.COMMA);
+				 ifExp_t = ifExp(se);
+				 if ( ifExp_t!=Exec.StringT && ifExp_t!=Exec.GenT )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExp_t]+"- expected type: string");
+				 operand=1;
 			 }
-			 else
-				 if ( builtinF == BIFType.ISKEY ) {
-					 if ( ifExpr_t!=Exec.JsonT && ifExpr_t!=Exec.NoType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[ifExpr_t]+"- expected type: json");
-	 				 lex.printH_Comma(false); // no space after comma in history
-					 lex.accept(Token.COMMA);
-					 ifExpr_t = ifExpr(se);
-					 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[ifExpr_t]+"- expected type: string");
-				 }
-				 else
-					 if ( builtinF == BIFType.LEN ) { 
-						 if ( ifExpr_t!=Exec.ListT && ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.JsonT && ifExpr_t!=Exec.NoType )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[ifExpr_t]+"- expected type: string or list or json");
-					 }
-					 else
-						 if ( builtinF == BIFType.TUPLE ) { 
-							 if ( ifExpr_t!=Exec.JsonT && ifExpr_t!=Exec.NoType && ifExpr_t!=Exec.LongT )
-									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											Exec.types[ifExpr_t]+"- expected type: json or long");						 
-						 }
-						 else {
-				 			 if ( !isNumber(ifExpr_t) && ifExpr_t!=Exec.NoType )
-									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											Exec.types[ifExpr_t]+"- expected type: double or long or int or char");
-				 			 if ( builtinF == BIFType.POW ) {
-				 				 lex.printH_Comma(false); // no space after comma in history
-				 				 lex.accept(Token.COMMA);
-				 				 ifExpr_t = ifExpr(se);
-				 	 			 if ( !isNumber(ifExpr_t) && ifExpr_t!=Exec.NoType )
-				 					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											Exec.types[ifExpr_t]+"- expected type: double or long or int or char");
-				 			 }
-						 }
-		 }
-		 else
-//				 if (builtinF == BIFType.GDATE ) {
-// 					 if ( lex.currToken()==Token.CPAR )
-// 						 operand=0;
-// 				 }	
-			 if ( builtinF == BIFType.PDATE ) {
-				 int ifExpr_t = ifExpr(se);
-				 if ( ifExpr_t!=Exec.LongT && ifExpr_t!=Exec.NoType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[ifExpr_t]+"- expected type: long");
-				 if ( lex.currToken()==Token.CPAR )
-					 operand=0;
-				 else {
-	 				 lex.printH_Comma(false); // no space after comma in history
-					 lex.accept(Token.COMMA);
-					 ifExpr_t = ifExpr(se);
-					 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									Exec.types[ifExpr_t]+"- expected type: string");
-					 operand=1;
-				 }			 
-			 }
-			 else {
-				 if (builtinF == BIFType.GDATE ) 
-					 if ( lex.currToken()==Token.CPAR )
-						 operand=0;
-					 else {
-						 int ifExpr_t = ifExpr(se);
-						 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-									throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-											Exec.types[ifExpr_t]+"- expected type: string");
-		 				 lex.printH_Comma(false); // no space after comma in history
-						 lex.accept(Token.COMMA);
-						 ifExpr_t = ifExpr(se);
-						 if ( ifExpr_t!=Exec.StringT && ifExpr_t!=Exec.NoType )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-										Exec.types[ifExpr_t]+"- expected type: string");
-						 operand=1;
-					 }			 						 
-			 }
-			lex.accept(Token.CPAR);
-			Transl.ins(builtinF.biOp, operand);
-			if ( builtinF == BIFType.LEN || builtinF == BIFType.IND )
-				return Exec.IntT;
-			else
-				if ( builtinF == BIFType.ISKEY )
-					return Exec.BoolT;
-				else
-					if ( builtinF == BIFType.GDATE )
-						return Exec.LongT;
-					else
-						if ( builtinF == BIFType.PDATE )
-							return Exec.StringT;
-						else
-							if ( builtinF == BIFType.TUPLE )
-								return Exec.ListT;
-							else						
-								return Exec.DoubleT;		 
+			 retType=Exec.StringT;
+		 };
+		 lex.accept(Token.CPAR);
+		 Transl.ins(builtinF.biOp, operand);
+		 return retType;	 
 	 }
 
-		// <call> -> [ <ifExpr>  { COMMA <ifExpr> } ]
-	 static int call (  boolean se ) throws Exc {
+		// <actPars> -> [ <ifExpr>  { COMMA <ifExpr> } ]
+	 static int actPars (  boolean se ) throws Exc {
 		 FunctCalled fc = new FunctCalled(currFunctCalled);
 		 if ( !se && fc.hasSideEffect )
-			 throw new Exc_Synt(ErrorType.SIDE_EFFECT, ": " + fc.ID);			 
-		 if ( fc.functionType == FunctCalled.isRetFunct)
-			 Transl.ins(Operator.STOREF, 0);
+			 throw new Exc_Synt(ErrorType.WRONG_SIDE_EFFECT, " " + fc.ID);			 
+		 Transl.ins(Operator.STOREF, 0); // store the id of the function to be eventually called 
 		 int iPar = 0;
 		 if ( inFirst(first_callFunct) ) {
 			 boolean first = true;
@@ -2572,14 +2708,17 @@ public class Parser {
 			 		 throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
 							"- expected number:"+fc.numParams);
 				 int formPar_t = fc.pTs.get(iPar);
-				 int ifExpr1_t = ifExpr(se);
-				 if ( ifExpr1_t >= Exec.FuncT && formPar_t != SymbH.functType )
+				 int ifExpr1_t = ifExp(se);
+				 if ( isLabel(ifExpr1_t))
+						throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
+								"- a label cannot be an actual paramater");
+				 if ( isFunction(ifExpr1_t) && formPar_t != SymbH.functType )
 						throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
 								"- expected variable type");
-				 if ( ifExpr1_t < Exec.FuncT && formPar_t == SymbH.functType )
+				 if ( !isFunction(ifExpr1_t) && formPar_t == SymbH.functType )
 						throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
 								"- expected function type");
-				 if ( formPar_t == SymbH.functType  ) { //
+				 if ( formPar_t == SymbH.functType  ) { // static check on function parameters
 					 FunctCalled cfc = currFunctCalled;
 					 if ( cfc.numParams != fc.pFn.get(iPar) )
 							throw new Exc_Synt(ErrorType.WRONG_ACT_PARAM, 
@@ -2601,52 +2740,55 @@ public class Parser {
 		 if ( iPar != fc.numParams )
 				throw new Exc_Synt(ErrorType.WRONG_ACT_PAR_NUM, 
 						iPar+"- expected number: "+fc.numParams);
-		 if ( fc.functionType==FunctCalled.isParameter ) {
-			 int nParCFTot = fc.numParamsTot;
-			 int iParCF = fc.functCode;
-			 Transl.ins(Operator.LOADARG,nParCFTot-iParCF);
-			 Transl.ins(Operator.DEREF,0);
-			 Transl.ins(Operator.CALLS,0,"-> ("+fc.ID+")");
-		 }
-		 else
-			 if ( fc.functionType==FunctCalled.isIdentifier )
-			 	Transl.ins(Operator.CALL,fc.functCode,"-> "+fc.ID);
-			 else { // fc.functionType == FunctCalled.isRetFunct
-				 Transl.ins(Operator.GETF,0);
-				 Transl.ins(Operator.CALLS,0,"*-> returned function ");
-			 }	
+		 Transl.ins(Operator.GETF,0);
+		 Transl.ins(Operator.CALL,0,"*-> "+fc.ID);		 
 		 if ( fc.retT == SymbH.functType) {
-			 currFunctCalled = new FunctCalled("",FunctCalled.isRetFunct,0,fc.retFn,fc.retFn); //** da sistemare
-			 return Exec.FuncT+fc.retFn;
+			 currFunctCalled = new FunctCalled("function returned by "+fc.ID,fc.hasSideEffect,0,fc.retFn,0); 
+			 return Exec.FuncT;
 		 }
 		 else
-			 return Exec.NoType;
+			 return Exec.GenT;
 	}
 	 
-	// <lambda> -> LAMBDA [ <formalParLambda> ] MAP <ifExpr>
-	static int lambda ( ) throws Exc {
+	// <lambda> -> LAMBDA [ ID { COMMA ID }  ] MAP <ifExpr>
+	static void lambda ( ) throws Exc {
 		 iStartLambda = History.nCurrComm()-1;
-//		 History.addChar(' ');
 		 lex.nextToken(); // skip LAMBDA
 		 lex.accept(Token.OPAR);
 		 SymbH.startLambda();
 		 int k=SymbH.nLambda()+1;
-		 Transl.ins(Operator.PUSHF,-k, "*-> Lambda "+k);		 
 	 	 int indSL=Transl.ins(Operator.START,-k,"* Lambda "+k);
+	 	 Transl.ins(Operator.GETXPAR,0); // set the pointer to possible function parameter array
 	 	 int nLP = 0;
 		 if ( lex.currToken() != Token.CPAR ) {
-			 formalParLambda( ); nLP++;
+			 if ( lex.currToken() == Token.ID ) {
+				 String idN = lex.IDName();
+				 lex.nextToken();
+				 SymbH.addParLambda(idN); 
+			 }
+			 else
+					throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+							"-- expected ID for lambda function parameter - found " + lex.tokenFullDescr());					 
+			 nLP++;
 			 while ( lex.currToken() == Token.COMMA ) {
 				 lex.printH_Comma(false); // print space after comma in history
 				 lex.nextToken();
-				 formalParLambda( ); nLP++;
+				 if ( lex.currToken() == Token.ID ) {
+					 String idN = lex.IDName();
+					 lex.nextToken();
+					 SymbH.addParLambda(idN); 
+				 }
+				 else
+						throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
+								"-- expected ID for lambda function parameter - found " + lex.tokenFullDescr());					 
+				 nLP++;
 			 }
 		 } 	
 		 lex.nextToken(); // skip CPAR
 		 lex.accept(Token.MAP);
 		 // check equivalence with formal parameter
-		 int retType = ifExpr(false); // no side effects
-	 	 if ( retType>=Exec.FuncT )
+		 int retType = ifExp(false); // no side effects
+	 	 if ( isFunction(retType) )
      	 	throw new Exc_Synt(ErrorType.WRONG_RET_TYPE, ": a lambda function cannot return a function");
 	 	 Transl.ins(Operator.RETURN,SymbH.nParLambdaFdef());
 	 	 int nCurrComm= History.currCommand().length();
@@ -2656,52 +2798,43 @@ public class Parser {
 	 	 else
 		 		lambdaSource=History.currCommand().substring(iStartLambda,nCurrComm-1);
 	 	 SymbH.endLambaFdef(Transl.extractLambda(indSL),lambdaSource);
-	 	 int numParamsTot;
+	 	 String kLambda="*-> Lambda "+k;
+		 Transl.ins(Operator.PUSHF,-k, kLambda);	
 	 	 if ( SymbH.useFunctParams() ) {
-	 		Transl.ins(Operator.PUSHI, SymbH.nParFdef());
-//	 		Transl.ins(Operator.BUILDS,SymbH.nParLambdaFdef(), "*->*-> Lambda "+k);
-	 		Transl.ins(Operator.BUILDS,nLP, "*->*-> Lambda "+k);
-	 		numParamsTot = SymbH.nParCurrFunDef()+nLP;
+		 	Transl.ins(Operator.STOREXPAR, SymbH.nParFdef());
+	 		Transl.ins(Operator.LWRAP,-k, "*->"+kLambda);
 	 	 }
-	 	 else
-	 		 numParamsTot = nLP;
-		 currFunctCalled = new FunctCalled("",FunctCalled.isRetFunct,0,nLP,numParamsTot); //** da sistemare
-	 	 return Exec.FuncT+nLP;
+	 	 currFunctCalled = new FunctCalled(kLambda,false,0,nLP,0); 
+		 return;
 	}
 	
-	// <formalParLambda> -> ID [ COMMA ID]* 
-	static void formalParLambda () throws Exc {
-		 if ( lex.currToken() == Token.ID ) {
-			 String idN = lex.IDName();
-			 lex.nextToken();
-			 SymbH.addParLambda(idN); 
-		 }
-		 else
-				throw new Exc_Sem(ErrorType.WRONG_FUNCT_DEF, 
-						"-- expected ID for lambda function parameter - found " + lex.tokenFullDescr());					 
-	}
-
-	// <constListElems> ->  <ifExpr> { COMMA <ifExpr> } [ BAR <ifExpr> ]
+	// <constListElems> ->  <ifExpr> { COMMA <ifExpr> } [ PIPE <ifExpr> ]
 	 static boolean constListElems ( boolean se ) throws Exc {
 		if ( inFirst(first_constListElems) ) { 
 			boolean isApp = false;
-			ifExpr(se);
+			int ifExpr1_t=ifExp(se);
+			if ( ifExpr1_t == Exec.LabT || ifExpr1_t == Exec.FuncT )
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, "an element of type "+
+						Exec.types[ifExpr1_t]+" cannot occur in a list");
 			Transl.ins(Operator.HLIST,0);
-			while ( lex.currToken() == Token.COMMA || ( lex.currToken() != Token.BAR && 
+			while ( lex.currToken() == Token.COMMA || ( lex.currToken() != Token.PIPE && 
 					lex.currToken() != Token.CSPAR ) ) {
 				if ( lex.currToken() == Token.COMMA ) {
 					lex.printH_Comma(true); // print space after comma in history
 					lex.nextToken();
 				}
-				ifExpr(se);
+				int ifExpr2_t=ifExp(se);
+				if ( ifExpr2_t == Exec.LabT || ifExpr2_t == Exec.FuncT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, "an element of type "+
+							Exec.types[ifExpr2_t]+" cannot occur in a list");
 				Transl.ins(Operator.CLIST,0);
 			}
-			if ( lex.currToken() == Token.BAR ) {
+			if ( lex.currToken() == Token.PIPE ) {
 				isApp = true;
 				lex.nextToken();
-				int ifExpr3_t = ifExpr(se);
-				if ( ifExpr3_t != Exec.ListT && ifExpr3_t != Exec.NoType )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				int ifExpr3_t = ifExp(se);
+				if ( ifExpr3_t != Exec.ListT && ifExpr3_t != Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[ifExpr3_t]+"- expected type: list");
 				Transl.ins(Operator.ALIST,0);
 			}
@@ -2711,36 +2844,35 @@ public class Parser {
 			 throw raiseExc(first_constListElems); 
 	}
 
-	// <listStringJsonElems> ->  DOT | GTLT(GT) [ <ifExpr> ] | <ifExpr> [ COLON [ <ifExpr> ] ] | 
+	// <sliceElems> ->  DOT | GTLT(GT) [ <ifExpr> ] | <ifExpr> [ COLON [ <ifExpr> ] ] | 
 	// 									COLON [ <ifExpr> ]
-	 static int listStringJsonElems ( boolean se, int currT) throws Exc {
-		 if ( currT != Exec.ListT && currT != Exec.StringT && currT != Exec.JsonT && currT != Exec.NoType )
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+	 static int sliceElems ( boolean se, int currT) throws Exc {
+		 if ( !isStringListJson(currT) )
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 						Exec.types[currT]+"- expected types: list or string or json");
 		 if ( lex.currToken() == Token.DOT ) { // A[.] - head of a list
-				if ( currT != Exec.ListT && currT != Exec.NoType )
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				if ( currT != Exec.ListT && currT != Exec.GslT && currT != Exec.GenT )
+					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[currT]+" - expected type: list");
 				 lex.nextToken();
 				 Transl.ins(Operator.HEAD,0);
-				 cannotBeJson=false;
-				 return Exec.NoType;
+				 return Exec.GenT;
 		 }
 		 if ( lex.currToken() == Token.GTLT ) // A[>] or A[>i] - tail or subtail of a list
 			 if ( lex.GTLT_Op() != GTLTOpType.GT )
 				throw new Exc_Synt(ErrorType.WRONG_TOKEN, 
 						lex.currTokenDescr() +"- expected '>'");
 			 else {
-				 if ( currT != Exec.ListT && currT != Exec.NoType )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				 if ( !isList(currT) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								Exec.types[currT]+" - expected type: list");
 				 lex.nextToken();
 				 if ( lex.currToken() == Token.CSPAR )
 					 Transl.ins(Operator.TAIL,0); // case A[>]
 				 else {
-					 int ifExpr_t = ifExpr(se);
-					 if ( !isInteger(ifExpr_t) && ifExpr_t != Exec.NoType )
-							throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+					 int ifExpr_t = ifExp(se);
+					 if ( !isIntegerOrChar(ifExpr_t) )
+							throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 									Exec.types[ifExpr_t]+" - expected type: integer or char");
 					 Transl.ins(Operator.LISTEL,0); // case A[>i]		
 					 Transl.ins(Operator.TAIL,0); //
@@ -2750,186 +2882,294 @@ public class Parser {
 		 if ( lex.currToken() == Token.COLON ) { // A[:] or A[:i]
 		 	 lex.printH_Colon(false); // print non-spaced COLON on history
 			 lex.nextToken();
-			 if ( lex.currToken() == Token.CSPAR ) { // A[:]
-				 if ( currT == Exec.ListT ) {
-					 Transl.ins(Operator.PUSHI,0);
-					 Transl.ins(Operator.LCLONE,0);
-					 return Exec.ListT;
-				 }
-				 else 
-					 if ( currT == Exec.StringT )
-						 return Exec.StringT;
-					 else 
-						 if ( currT == Exec.JsonT ) {
-							 Transl.ins(Operator.JCLONE,0);
-							 return Exec.JsonT;
-						 }
-						 else {
-							 Transl.ins(Operator.LSJCLONE,0);
-							 cannotBeJson=false;
-							 return Exec.NoType;
-						 }					 
-			 }
+			 if ( lex.currToken() == Token.CSPAR )  // A[:]
+				 return cloneSlice(currT);
 			 else { // A[:i]
 				 if ( currT == Exec.JsonT )
-						throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 								"json - expected type: list or string");
-				 cannotBeJson=true;
 				 Transl.ins(Operator.PUSHI,0);
-				 int ifExpr1_t = ifExpr(se);
-				 return checkElement3(currT,Exec.IntT,ifExpr1_t);
+				 int ifExpr1_t = ifExp(se);
+				 if ( !isIntegerOrChar(ifExpr1_t) )
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								Exec.types[ifExpr1_t]+"- expected types: int or char");			 
+				 return subStringListSlice(currT,1);
 			 }
 	     }
-		 if ( inFirst(first_ifExpr) ) { // A[i] or A[i:] or A[i:j]
-					 int ifExpr2_t = ifExpr(se);
+		 if ( inFirst(first_ifExp) ) { // A[i] or A[i:] or A[i:j]
+					 int ifExpr2_t = ifExp(se);
 					 if ( lex.currToken() == Token.CSPAR ) // A[i]
-						 return checkElement1 (currT,ifExpr2_t );
+						 return elemStringListJsonSlice (currT,ifExpr2_t );
 					 else {
 						 if ( currT == Exec.JsonT )
-								throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 										"json - expected type: list or string");
+						 if ( !isIntegerOrChar(ifExpr2_t) )
+								throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+										Exec.types[ifExpr2_t]+" - expected type: integer or char");
 						 lex.printH_Colon(false); // print non-spaced COLON on history
-						 cannotBeJson=true;
 						 lex.accept(Token.COLON);
 						 if ( lex.currToken() == Token.CSPAR ) // A[i:]
-							 return checkElement2 (currT,ifExpr2_t );
+							 return subStringListSlice (currT,0 );
 						 else { // A[i:j]
-							 int ifExpr3_t = ifExpr(se);
-							 return checkElement3(currT,ifExpr2_t,ifExpr3_t);
+							 int ifExpr3_t = ifExp(se);
+							 if ( !isIntegerOrChar(ifExpr3_t) )
+									throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+											Exec.types[ifExpr3_t]+" - expected type: integer or char");
+							 return subStringListSlice(currT,1);
 						 }
 					 }
 				 }
 		 throw raiseExc(first_listElems); 
 	}
-	 
-	 // method called by <listStringElems>
-	 static int checkElement1 ( int currT, int exprT ) throws Exc  { // A[i]
-		 if ( currT == Exec.JsonT ) 
-			 if ( exprT==Exec.StringT || exprT==Exec.NoType ) {
+
+	 // method called by <sliceElems>
+	 static int elemStringListJsonSlice ( int currT, int exprT ) throws Exc  { // A[i]
+		switch(currT) {
+		case Exec.JsonT:
+			if ( isString(exprT) ) {
 				 Transl.ins(Operator.FLDFIND,0);
 				 Transl.ins(Operator.FLDVAL,0);
-				 return Exec.NoType;
+				 return Exec.GenT;
 			 }
 			 else
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[exprT]+"- expected type: string");
-		 if ( currT == Exec.ListT ) 
-			 if ( isInteger(exprT) || exprT==Exec.NoType ) {
+		case Exec.ListT:
+			 if ( isIntegerOrChar(exprT) ) {
 				 Transl.ins(Operator.LISTEL,0);
 				 Transl.ins(Operator.HEAD,0);
-				 cannotBeJson=false;
-				 return Exec.NoType;
+				 return Exec.GenT;
 			 }
 			 else
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							Exec.types[exprT]+"- expected types: int or char");
-		 if ( currT == Exec.StringT ) {
-			 if ( isInteger(exprT) || exprT == Exec.NoType ) {
+		case Exec.StringT:
+			 if ( isIntegerOrChar(exprT) ) {
 				 Transl.ins(Operator.STRINGEL,0);
 				 return Exec.CharT;
 			 }
 			 else
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
 							 Exec.types[exprT]+"- expected types: int or char or string");
-		 }
-		 // currT is now equal to NullT
-		 if ( cannotBeJson && exprT==Exec.StringT )
-			 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-					 Exec.types[exprT]+"list or string - expected type: json");	 			 
-		 if ( isInteger(exprT) ) {
-			 Transl.ins(Operator.LSELV,0); 
-			 return Exec.NoType;
-		 }
-		 else
-			 if ( exprT==Exec.StringT ) {
-				 Transl.ins(Operator.FLDFIND,0);
-				 Transl.ins(Operator.FLDVAL,0);
-				 return Exec.NoType;
-			 }
-			 else			 
-				 if ( exprT == Exec.NoType ) {
-					 Transl.ins(Operator.LSJELV,0);
-					 return Exec.NoType;
-				 }
-				 else
-					 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-									 Exec.types[exprT]+"- expected types: int or char or string");	 
+		case Exec.GslT:
+			if ( isIntegerOrChar(exprT) ) {
+				 Transl.ins(Operator.LSELV,0); 
+				 return Exec.GenT;	
+			}
+			else
+				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+						Exec.types[exprT]+"- expected types: int or char");
+		case Exec.GsljT: case Exec.GenT:
+			if ( isIntegerOrChar(exprT) && !isString(exprT) ) {
+				 Transl.ins(Operator.LSELV,0); 
+				 return Exec.GenT;			 
+			}
+			else
+				if ( isString(exprT) && !isIntegerOrChar(exprT) ) {
+					 Transl.ins(Operator.FLDFIND,0);
+					 Transl.ins(Operator.FLDVAL,0);
+					 return Exec.GenT;					
+				}
+				else 
+					if ( exprT==Exec.GenT ) {
+						 Transl.ins(Operator.LSJELV,0);
+						 return Exec.GenT;					
+					}
+					else
+						throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+								 Exec.types[exprT]+"- expected types: int or char or string");
+		}
+		throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+				Exec.types[currT]+"- expected types: list or string or json");		 
 	 }
+	 
+//	 // method called by <sliceElems>
+//	 static int checkElement1 ( int currT, int exprT ) throws Exc  { // A[i]
+//		 if ( currT == Exec.JsonT ) 
+//			 if ( exprT==Exec.StringT || exprT==Exec.GenT ) {
+//				 Transl.ins(Operator.FLDFIND,0);
+//				 Transl.ins(Operator.FLDVAL,0);
+//				 return Exec.GenT;
+//			 }
+//			 else
+//				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							Exec.types[exprT]+"- expected type: string");
+//		 if ( currT == Exec.ListT ) 
+//			 if ( isIntegerOrChar(exprT) || exprT==Exec.GenT ) {
+//				 Transl.ins(Operator.LISTEL,0);
+//				 Transl.ins(Operator.HEAD,0);
+//				 cannotBeJson=false;
+//				 return Exec.GenT;
+//			 }
+//			 else
+//				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							Exec.types[exprT]+"- expected types: int or char");
+//		 if ( currT == Exec.StringT ) {
+//			 if ( isIntegerOrChar(exprT) || exprT == Exec.GenT ) {
+//				 Transl.ins(Operator.STRINGEL,0);
+//				 return Exec.CharT;
+//			 }
+//			 else
+//				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							 Exec.types[exprT]+"- expected types: int or char or string");
+//		 }
+//		 // currT is now equal to NullT
+//		 if ( cannotBeJson && exprT==Exec.StringT )
+//			 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//					 Exec.types[exprT]+"list or string - expected type: json");	 			 
+//		 if ( isIntegerOrChar(exprT) ) {
+//			 Transl.ins(Operator.LSELV,0); 
+//			 return Exec.GenT;
+//		 }
+//		 else
+//			 if ( exprT==Exec.StringT ) {
+//				 Transl.ins(Operator.FLDFIND,0);
+//				 Transl.ins(Operator.FLDVAL,0);
+//				 return Exec.GenT;
+//			 }
+//			 else			 
+//				 if ( exprT == Exec.GenT ) {
+//					 Transl.ins(Operator.LSJELV,0);
+//					 return Exec.GenT;
+//				 }
+//				 else
+//					 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//									 Exec.types[exprT]+"- expected types: int or char or string");	 
+//	 }
+//
+//	 // method called by <sliceElems>
+//	 static int checkElement2 ( int currT, int exprT ) throws Exc  { // A[i:]
+//		 if ( currT == Exec.ListT ) 
+//			 if ( isIntegerOrChar(exprT) || exprT==Exec.GenT ) {
+//				 Transl.ins(Operator.LCLONE,0);
+//				 return Exec.ListT;
+//			 }
+//			 else
+//				throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							Exec.types[exprT]+"- expected types: int or char");
+//		 if ( currT == Exec.StringT ) {
+//			 if ( isIntegerOrChar(exprT) || exprT == Exec.GenT ) {
+//				 Transl.ins(Operator.SUBSTR,0);
+//				 return Exec.StringT;
+//			 }
+//			 else
+//				 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//								 Exec.types[exprT]+"- expected types: int or char");
+//		 }
+//		 // currT is now equal to NullT
+//		 if ( isIntegerOrChar(exprT) || exprT == Exec.GenT ) {
+//			 Transl.ins(Operator.LSCLONE,0);
+//			 cannotBeJson=true;
+//			 return Exec.GenT;
+//		 }
+//		 else
+//			 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							 Exec.types[exprT]+"- expected types: int or char");	 
+//	 }
 
-	 // method called by <listStringElems>
-	 static int checkElement2 ( int currT, int exprT ) throws Exc  { // A[i:]
-		 if ( currT == Exec.ListT ) 
-			 if ( isInteger(exprT) || exprT==Exec.NoType ) {
-				 Transl.ins(Operator.LCLONE,0);
-				 return Exec.ListT;
-			 }
-			 else
-				throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							Exec.types[exprT]+"- expected types: int or char");
-		 if ( currT == Exec.StringT ) {
-			 if ( isInteger(exprT) || exprT == Exec.NoType ) {
-				 Transl.ins(Operator.SUBSTR,0);
+	 // method called by <sliceElems> [:i]
+	 static int cloneSlice ( int currT ) throws Exc  { // A[:]
+		 switch(currT) {
+		 case Exec.ListT: 
+			 Transl.ins(Operator.PUSHI,0);
+			 Transl.ins(Operator.LCLONE,0); 
+			 return Exec.ListT;	
+		 case Exec.StringT: 
+			 return Exec.StringT; // string are not cloned
+		 case Exec.JsonT: 
+			 Transl.ins(Operator.JCLONE,0);
+			 return Exec.JsonT;	
+		 case Exec.GslT:
+			 Transl.ins(Operator.LSJCLONE,0);
+			 return Exec.GslT;
+		 case Exec.GsljT: case Exec.GenT:
+			 Transl.ins(Operator.LSJCLONE,0);
+			 return Exec.GsljT;			 
+		 } 
+		throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+					Exec.types[currT]+"- expected types: list or string or json");		 
+	 }
+	
+
+	 // method called by <sliceElems> [:i]
+	 static int subStringListSlice ( int currT, int kk ) throws Exc  { // A[:j] or A[i:j]
+		 if ( currT == Exec.ListT ) {
+			 Transl.ins(Operator.LCLONE,kk);
+			 return Exec.ListT;
+		 }
+		 else 
+			 if (currT == Exec.StringT  ) {
+				 Transl.ins(Operator.SUBSTR,kk);
 				 return Exec.StringT;
 			 }
-			 else
-				 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								 Exec.types[exprT]+"- expected types: int or char");
+			 else { // currT is  Exec.GenT or Exec.GsljT or Exec.GslT
+				 Transl.ins(Operator.LSCLONE,kk);
+				 return Exec.GslT;
+			 }
+	 }
+	
+	 // method called by <sliceElems> [:i]
+	 static int subStringListSlice_i_end ( int currT ) throws Exc  { // A[:i]
+		 if ( currT == Exec.ListT ) {
+			 Transl.ins(Operator.LCLONE,0);
+			 return Exec.ListT;
 		 }
-		 // currT is now equal to NullT
-		 if ( isInteger(exprT) || exprT == Exec.NoType ) {
-			 Transl.ins(Operator.LSCLONE,0);
-			 cannotBeJson=true;
-			 return Exec.NoType;
-		 }
-		 else
-			 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							 Exec.types[exprT]+"- expected types: int or char");	 
+		 else 
+			 if (currT == Exec.StringT  ) {
+				 Transl.ins(Operator.SUBSTR,1);
+				 return Exec.StringT;
+			 }
+			 else { // currT is  Exec.GenT or Exec.GsljT or Exec.GslT
+				 Transl.ins(Operator.LSCLONE,1);
+				 return Exec.GslT;
+			 }
 	 }
 
-	 // method called by <listStringElems>
-	 static int checkElement3 ( int currT, int exprT1, int exprT2 ) throws Exc  { // A[i:j]
-		 if ( currT == Exec.ListT ) 
-			 if ( isInteger(exprT1) || exprT1==Exec.NoType ) 
-				 if ( isInteger(exprT2) || exprT2==Exec.NoType ){
-					 Transl.ins(Operator.LCLONE,1);
-					 return Exec.ListT;
-				 }
-				 else
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								Exec.types[exprT2]+"- expected types: int or char");
-			 else
-					throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							Exec.types[exprT1]+"- expected types: int or char");
-		 if ( currT == Exec.StringT ) {
-			 if ( isInteger(exprT1) || exprT1 == Exec.NoType ) 
-				 if ( isInteger(exprT2) ){
-					 Transl.ins(Operator.SUBSTR,1);
-					 return Exec.StringT;
-				 }
-				 else
-					 if ( exprT2 == Exec.NoType  ) {
-						 Transl.ins(Operator.LSCLONE,1);
-						 cannotBeJson=true;
-						 return Exec.NoType;				 
-					 }
-					 else
-						 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-								 Exec.types[exprT2]+"- expected types: int or char");
-		 }
-		 // currT is now equal to NullT
-		 if ( isInteger(exprT1) || exprT1 == Exec.NoType ) 
-			 if ( isInteger(exprT2) || exprT2 == Exec.NoType || exprT2 == Exec.StringT ){
-				 Transl.ins(Operator.LSCLONE,1);
-				 cannotBeJson=true;
-				 return Exec.NoType;
-			 }
-			 else
-				 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-						 Exec.types[exprT2]+"- expected types: int or char");
-		 else			 
-			 throw new Exc_Synt(ErrorType.WRONG_EXP_TYPE, 
-							 Exec.types[exprT1]+"- expected type: int or char");	 
-	 }
+//	 // method called by <sliceElems>
+//	 static int checkElement3 ( int currT, int exprT1, int exprT2 ) throws Exc  { // A[i:j]
+//		 if ( currT == Exec.ListT ) 
+//			 if ( isIntegerOrChar(exprT1) || exprT1==Exec.GnumT || exprT1==Exec.GenT ) 
+//				 if ( isIntegerOrChar(exprT2) || exprT2==Exec.GnumT || exprT2==Exec.GenT ){
+//					 Transl.ins(Operator.LCLONE,1);
+//					 return Exec.ListT;
+//				 }
+//				 else
+//					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//								Exec.types[exprT2]+"- expected types: int or char");
+//			 else
+//					throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							Exec.types[exprT1]+"- expected types: int or char");
+//		 if ( currT == Exec.StringT ) {
+//			 if ( isIntegerOrChar(exprT1) || exprT1 == Exec.GnumT || exprT1 == Exec.GenT ) 
+//				 if ( isIntegerOrChar(exprT2) ){
+//					 Transl.ins(Operator.SUBSTR,1);
+//					 return Exec.StringT;
+//				 }
+//				 else
+//					 if ( exprT2 == Exec.GenT  ) {
+//						 Transl.ins(Operator.LSCLONE,1);
+//						 cannotBeJson=true;
+//						 return Exec.GenT;				 
+//					 }
+//					 else
+//						 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//								 Exec.types[exprT2]+"- expected types: int or char");
+//		 }
+//		 // currT is now equal to NullT
+//		 if ( isIntegerOrChar(exprT1) || exprT1 == Exec.GenT ) 
+//			 if ( isIntegerOrChar(exprT2) || exprT2 == Exec.GenT || exprT2 == Exec.StringT ){
+//				 Transl.ins(Operator.LSCLONE,1);
+//				 cannotBeJson=true;
+//				 return Exec.GenT;
+//			 }
+//			 else
+//				 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//						 Exec.types[exprT2]+"- expected types: int or char");
+//		 else			 
+//			 throw new Exc_Synt(ErrorType.WRONG_TYPE, 
+//							 Exec.types[exprT1]+"- expected type: int or char");	 
+//	 }
 	 
 	 static void setAnsGV() throws Exc {
 		 SymbH.startVarDef("ans",false,""); // no label for ans
@@ -2987,58 +3227,135 @@ public class Parser {
 			ioh.error(e);
 			lex.skipStatement();
 		}
-		else
+		else // error during run-time execution
 			ioh.errorNoSkip(e);
 	} 
 
-	 static boolean isInteger( int type ) {
-		 return type==Exec.IntT || type==Exec.CharT;
+	 static boolean isIntegerOrChar( int type ) {
+		 return type==Exec.GenT || type==Exec.GnumT || type==Exec.IntT || type==Exec.CharT;
 	 }
 
-	 static boolean isLongInteger( int type ) {
-		 return type==Exec.LongT || type==Exec.IntT || type==Exec.CharT;
+	 static boolean isFunction( int type ) {
+		 return type==Exec.FuncT;
 	 }
 
-	 static boolean isComparable ( int type, GTLTOpType relOp ) {
-		return type==Exec.NoType || isNumber(type) || type==Exec.StringT || 
-						type==Exec.BoolT || type==Exec.NullT;
+	 static boolean isLabel( int type ) {
+		 return type==Exec.LabT;
 	 }
 
-		static boolean areComparable ( int type1, int type2, EQNEQOpType relOp ) {
-			if ( type1 == Exec.NoType || type2 == Exec.NoType )
+		static boolean areEQNEQComparable ( int type1, int type2 ) {
+			if ( isFunction(type1) || isFunction(type2) )
+				return false;
+			if ( isLabel(type1) || isLabel(type2) )
+				return false;
+			if (type1==type2 )
 				return true;
-			if ( isNumber(type1) && isNumber(type2) )
+			if ( type1 == Exec.GenT || type2 == Exec.GenT )
 				return true;
 			if ( type1 == Exec.NullT || type2 == Exec.NullT )
 				return true;
-			return type1==type2 || (type1==Exec.TypeT && type2==Exec.MetaTypeT) ||
-						(type2==Exec.TypeT && type1==Exec.MetaTypeT);
+			if ( isNumber(type1) && isNumber(type2) )
+				return true;
+			if ( isStringListJson(type1) && isStringListJson(type2) &&
+					!areDistinctStringListJson(type1,type2) )
+				return  true;
+			return false; 
 		}
 		
 
-		static boolean areComparable ( int type1, int type2, GTLTOpType relOp ) {
-			if ( type1 == Exec.NoType || type2 == Exec.NoType )
-				return true;
+		static boolean areRelComparable ( int type1, int type2 ) {
+			if ( isFunction(type1) || isFunction(type2) )
+				return false;
+			if ( isLabel(type1) || isLabel(type2) )
+				return false;
+			if ( type1==Exec.ListT || type2==Exec.ListT )
+				return false;
+			if ( type1==Exec.JsonT || type2==Exec.JsonT )
+				return false;
+			if ( type1==Exec.NullT || type2==Exec.NullT )
+				return false;
 			if ( isNumber(type1) && isNumber(type2) )
 				return true;
-			if ( type1 == Exec.NullT || type2 == Exec.NullT )
+			if ( isStringList(type1)  && isStringList(type2) )
+				// two cases: (1) only two strings or (2) a string and a generic GslT
 				return true;
-			return type1==type2;
+			if ( isBool(type1) && isBool(type2) )
+				return true;
+			return false;
+		}
+	
+		static boolean isBool( int type ) {
+			return type==Exec.BoolT || type==Exec.GenT;
 		}
 		
 		static boolean isNumber( int type ) {
-			return type==Exec.DoubleT || type==Exec.LongT || type==Exec.CharT || type==Exec.IntT;
+			return type==Exec.DoubleT || type==Exec.LongT || type==Exec.CharT 
+					|| type==Exec.IntT || type==Exec.GnumT || type==Exec.GenT;
 		}
 
-		static int mostGenericNumber(int t1, int t2) {
-			if ( t1==Exec.NoType || t2==Exec.NoType )
-				return Exec.NoType;
+		static int mostGeneralNumberType(int t1, int t2) {
+			if ( t1==Exec.GenT || t2==Exec.GenT )
+				return Exec.GnumT;
+			if ( t1==Exec.GnumT || t2==Exec.GnumT )
+				return Exec.GnumT;
 			if ( t1==Exec.DoubleT || t2==Exec.DoubleT )
 				return Exec.DoubleT;
 			if ( t1==Exec.LongT || t2==Exec.LongT )
 				return Exec.LongT;
-			return Exec.IntT;
+			if ( t1==Exec.IntT || t2==Exec.IntT )
+				return Exec.IntT;
+			return Exec.CharT; 
 		}
+
+		static boolean isString(int t) {
+			return  t==Exec.GenT || t==Exec.GsljT || t==Exec.GslT || 
+					t==Exec.StringT;
+		}
+
+		static boolean isList(int t) {
+			return  t==Exec.GenT || t==Exec.GsljT || t==Exec.GslT || 
+					t==Exec.ListT;
+		}
+
+		static boolean isStringList(int t) {
+			return  t==Exec.GenT || t==Exec.GsljT || t==Exec.GslT || 
+					t==Exec.StringT || t==Exec.ListT;
+		}
+
+		static boolean isStringListJson(int t) {
+			return  t==Exec.GenT || t==Exec.GsljT || t==Exec.GslT || 
+					t==Exec.StringT || t==Exec.ListT || t==Exec.JsonT;
+		}
+		
+		static boolean areDistinctStringListJson(int t1, int t2) {
+			boolean t1Strict= t1==Exec.StringT || t1==Exec.ListT || t1==Exec.JsonT;
+			boolean t2Strict= t2==Exec.StringT || t2==Exec.ListT || t2==Exec.JsonT;
+			return  t1Strict && t2Strict && t1 != t2;
+		}
+
+		static int mostGeneralStringList(int t1, int t2) {
+			if ( t1 == t2 )
+				return t1;
+			if ( isNumber(t1)  && isNumber(t2) )
+				return mostGeneralNumberType(t1,t2);
+			 if ( isStringList(t1)  && isStringList(t2) )
+				 return Exec.GslT;
+			return Exec.GenT;
+		}	
+
+		static int mostGeneralType(int t1, int t2) {
+			if ( t1 == t2 )
+				return t1;
+			if ( t1 == Exec.GenT  || t2 == Exec.GenT )
+				return Exec.GenT;
+			if ( isNumber(t1)  && isNumber(t2) )
+				return mostGeneralNumberType(t1,t2);
+			 if ( isStringList(t1)  && isStringList(t2) )
+				 return Exec.GslT;
+			 if ( isStringListJson(t1)  && isStringListJson(t2) )
+				 return Exec.GsljT;
+			return Exec.GenT;
+		}	
 
 
 	// execution of a command service
@@ -3051,8 +3368,8 @@ public class Parser {
 		 	case isReleaseService: OutputH.printRelease(); break;
 		 	case isDebugOnService: isDebug = true; OutputH.printDebug(isDebug); break;
 		 	case isDebugOffService: isDebug = false; OutputH.printDebug(isDebug); break;
-		 	case isTailOptOnService: isTailOpt = true; OutputH.printTailOpt(isTailOpt); break;
-		 	case isTailOptOffService: isTailOpt = false; OutputH.printTailOpt(isTailOpt); break;
+//		 	case isTailOptOnService: isTailOpt = true; OutputH.printTailOpt(isTailOpt); break;
+//		 	case isTailOptOffService: isTailOpt = false; OutputH.printTailOpt(isTailOpt); break;
 		 	case isHistoryService: OutputH.printHist(0,true); break;
 		 	case isHistoryNumService: OutputH.printHist(numHistory,false); break;
 		 	case isLabelService: OutputH.printLabels(setLabel,setLabelID); break;
@@ -3063,10 +3380,9 @@ public class Parser {
 		 						break;
 		 	case isSaveService: ioh.saveFile(); break;
 		 	case isMemoryService: OutputH.printMemory(numMemoryService); break;
-	//	 	case isMemorySizeService: OutputH.printSize(); break;
 		 	case isImportEchoService: ioh.importFile(true); break;
 		 	case isImportNoEchoService: ioh.importFile(false); break;
-		 	case isClops: ioh.print(Integer.toString(Exec.nExecMicroInstrs())+"\n"); break;
+		 	case isClops: ioh.print(Long.toString(Exec.nExecMicroInstrs())+"\n"); break;
 		 	case isExecService: ioh.setExecLine(History.command(numHistory)); break;
 		 	default: throw new Exc_Synt(ErrorType.FATAL_ERROR,": unexpected behavior while executing service commands"); 
 
@@ -3076,42 +3392,54 @@ public class Parser {
 
 class FunctCalled {
 	static  final int paramsInitCapacity = 20;
-	boolean hasSideEffect;
-	int numParams; // number of parameters
-	int numParamsTot; // equals to numParams except for lambda (includes hosting funct parameters)
-	boolean hasFunctParams;
+	boolean hasSideEffect; // true if the called function has side effects
+	int numParams; // number of parameters of the called function
+	boolean hasFunctParams; // true if the called function includes function parameters 
 	String ID;
-	int functCode;
-	int functionType;
-	static int isParameter=1;
-	static int isIdentifier=2;
-	static int isRetFunct=3;
+//	int functionType;
+//	static int isParameter=1; // the called function is denoted by a parameter of a function definition
+//	static int isIdentifier=2; // the called function is denoted by its identifier
+//	static int isRetFunct=3; // the called function has been returned during a computation
+	int functIndex;
+	// case isParameter: 
+	//		in general functIndex is the parameter index within a function definition  
+	//      [ex1] given the function parameter X_i in the definition f(X_0..,X_i/n_i,...,X_k)-> ...X_i(...)..., functIndex is i
+    //      in case of lambda definition inside a (external) function definition, the are two parameter types in the order: 
+    //      (1) external parameters and (2) proper lambda parameters and the called function is denoted by an external parameter 
+	//      [ex2] f(X_0,X_1/2,X_2)/1 -> \ (X_3) -> X_1(X_0,X3) where X3 is proper while X_0 - X_2 are external
+	//            X_1 is the parameter denoting the called function and its functIndex is 1
+	// case isIdentifier: functCode is the identifier function index
+	// case isRetFunct: functCode is 0 (not applicable)
+	int numParamsDefFunct; 
+	// case isIdentifier: case isRetFunct: numParamsDefFunct is 0 (not applicable)
+	// case isParameter: numParamsDefFunct is the total number of parameters of the function for which the called function is a parameter 
+	// k for X_i in [ex1] and 4 (number of external and proper parameters) for X_1 in [ex2]
 	ArrayList<Integer> pTs; // parameters types (varType, functType)
 	ArrayList<Integer> pFn; // arity for function parameters
 	int retT; // return value type (varType, functType)
 	int retFn; // arity for return functType
 
-	FunctCalled (String ID, int fType, int fCode, FunctInfo fi ) {
+	FunctCalled (String ID, int fCode, FunctInfo fi ) {
 		this.ID = ID;
-		this.functionType = fType;
-		this.functCode = fCode;
+		this.functIndex = fCode;
 		this.hasSideEffect = fi.hasSideEffect;
 		this.numParams = fi.pTs.size();
-		this.numParamsTot = numParams;
+		this.numParamsDefFunct = 0;
 		this.hasFunctParams =fi.hasFunctParams;
 		pTs = new ArrayList<Integer> (fi.pTs);
 		pFn = new ArrayList<Integer> (fi.pFn);
 		retT = fi.retT;
 		retFn = fi.retFn;
-//		print();
+//		print(this);
 	}
-	FunctCalled (String idN, int fType, int fCode, int fArity, int fArityTot ) {
+
+
+	FunctCalled (String idN, boolean se, int fCode, int fArity, int defFuncArity ) {
 		this.ID = idN;
-		this.functionType = fType;
-		this.functCode = fCode;
-		this.hasSideEffect = false;
+		this.functIndex = fCode;
+		this.hasSideEffect = se;
 		this.numParams = fArity;
-		this.numParamsTot = fArityTot;
+		this.numParamsDefFunct = defFuncArity;
 		this.hasFunctParams =false;
 		pTs = new ArrayList<Integer> (fArity);
 		pFn = new ArrayList<Integer> (fArity);
@@ -3121,34 +3449,57 @@ class FunctCalled {
 		}
 		retT = SymbH.varType;
 		retFn = 0;
-//		print();
+//		print(this);
 	}
+
 	FunctCalled ( FunctCalled fc ) {
 		this.ID = fc.ID;
-		this.functionType = fc.functionType;
-		this.functCode = fc.functCode;
+		this.functIndex = fc.functIndex;
 		this.hasSideEffect = fc.hasSideEffect;
 		this.numParams = fc.numParams;
-		this.numParamsTot = fc.numParamsTot;
+		this.numParamsDefFunct = fc.numParamsDefFunct;
 		this.hasFunctParams =fc.hasFunctParams;
 		pTs = new ArrayList<Integer>(fc.pTs);
 		pFn = new ArrayList<Integer>(fc.pFn);
 		retT=fc.retT;
 		retFn=fc.retFn;
-//		print();
+//		print(this);
 	}
-//	void print() {
-//		System.out.println("IDNAME: "+ID);
-//		System.out.println("fType: "+functionType);
-//		System.out.println("fCode: "+functCode);
-//		System.out.println("sideEffect: "+hasSideEffect);
-//		System.out.println("nParams: "+numParams);
-//		System.out.println("nParamsTot: "+numParamsTot);
-//		System.out.println("hasFunctParams: "+hasFunctParams);
-//		System.out.println("retT: "+retT);
-//		System.out.println("retFn: "+retFn);
-//		
-//	}
-
+	static void print(FunctCalled fc) {
+		System.out.println("\nIDNAME: "+fc.ID);
+		System.out.println("fCode: "+fc.functIndex);
+		System.out.println("sideEffect: "+fc.hasSideEffect);
+		System.out.println("nParams: "+fc.numParams);
+		System.out.println("nParamsTot: "+fc.numParamsDefFunct);
+		System.out.println("hasFunctParams: "+fc.hasFunctParams);
+		System.out.println("retT: "+fc.retT);
+		System.out.println("retFn: "+fc.retFn);
+		System.out.println("pTs - pFn");
+		for (int i=0; i<fc.numParams; i++)
+			System.out.println("i="+i +" pTn="+fc.pTs.get(i)+ " pFn="+fc.pFn.get(i));
+		
+	}
+	static boolean equiv ( FunctCalled fc1, FunctCalled fc2) {
+		if ( 	fc1.hasSideEffect != fc2.hasSideEffect || 
+				fc1.numParams != fc2.numParams ||
+//				fc1.numParamsTot != fc2.numParamsTot ||
+				fc1.hasFunctParams != fc2.hasFunctParams ||
+				fc1.retT != fc2.retT ||
+				fc1.retFn != fc2.retFn 
+			)
+			return false;
+		for ( int i=0; i < fc1.numParams; i++ )
+				if ( fc1.pTs.get(i) != fc2.pTs.get(i) || 
+						fc1.pFn.get(i) != fc2.pFn.get(i) )
+					return false;		
+		return true;
+	}
 } // end class FunctCalled
 
+class GuardRet {
+	int exprt;
+	FunctCalled fc;
+	GuardRet( int e,FunctCalled f) {
+		exprt=e; fc=f;
+	}
+}
