@@ -135,3 +135,4 @@ $RECYCLE.BIN/
 ### CalcuList runtime files (kept locally, not published) ###
 /_CalcuList_fileExecF_
 /Utilities.cl
+/dept_unical.dat
