@@ -132,3 +132,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+### CalcuList runtime files (kept locally, not published) ###
+/_CalcuList_fileExecF_
+/Utilities.cl

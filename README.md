@@ -18,9 +18,9 @@ Download `CalcuList_R_5_0_0.jar` from the [Releases](https://github.com/saccad/C
 java -jar CalcuList_R_5_0_0.jar
 ```
 
-Optional arguments set the sizes (in words) of the memory arrays MEM, OUTPUT and CODE, for example `java -jar CalcuList_R_5_0_0.jar EXECCMS 512000 EXECOS 128000`; see Appendix D of the book [1].
+Optional arguments set the sizes (in words) of the memory arrays MEM, OUTPUT and CODE, for example `java -jar CalcuList_R_5_0_0.jar EXECMS 512000 EXECOS 128000`; see Appendix D of the book [1].
 
-The CLVM assembler is distributed as `CLVM_ASM_R_5_0_0.jar`. The files `Utilities.cl` and `Utilities_chapter_7.cl` contain utility functions; the `.dat` files are sample datasets used in the examples.
+The CLVM assembler is distributed as `CLVM_ASM_R_5_0_0.jar`. The folder `Utilities` contains sample utility files (`Utilities_empty.cl`, `Utilities_chapter_7.cl`): copy one of them into the working directory as `Utilities.cl` to load it at startup. The folder `Examples` contains the CalcuList programs and datasets used in the book.
 
 ### License
 

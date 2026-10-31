@@ -1,0 +1,30 @@
+/*  Chapter 5: input for CalcuList Parser */
+L = [3, 1, 7, 4, 0, 5, 13, 11, -1];
+L = [3, 1, 7, 4, 0, 5, 13, 11, -];
+swap*(L, i, j) -> <tmp> {!tmp=L[i] & L[i]=L[j]!} {!L[j]=tmp!} true;
+swap*(L, i, j) -> <tmp> {!tmp=L[i] & L[i]=L[j] } {!L[j]=tmp!} true;
+BUBBLE_SORT: pass*/3, iter*/2, sort*/1;
+BUBBLE_SORT: pass*/3, iter*/2, ;
+:BUBBLE_SORT;
+:BUBBLE_SORT
+sort*(L) -> L==[]? L: iter(L, _len(L)-2);
+sort*(L) -> L==[]? L: iter(L, _len(L)-2)?;
+sort*(L) -> L==[]? L: iter(L, _leng(L)-2);
+iter*(L, last) -> _
+| last<0: L_
+| : {! [pass(L, 0, last)] !} iter(L, last-1);
+iter*(L, last) -> _
+| last<0: L_
+|  {! [pass(L, 0, last)] !} iter(L, last-1);
+pass*(L, i, last)-> _
+| i>last: null /* end of a pass*/_
+| L[i]>L[i+1]: {! [swap(L, i, i+1) ] !} pass(L, i+1, last)_
+| : pass(L, i+1, last);
+pass*(L, i, last)-> _
+| i>last: null /* end of a pass*/_
+| L[i]>L[i+1]: {! [swap(L, i, i+1 ] !} pass(L, i+1, last)_
+| : pass(L, i+1, last);
+^ sort(L);
+^ sort(L) &;
+!clops;
+!variables;
